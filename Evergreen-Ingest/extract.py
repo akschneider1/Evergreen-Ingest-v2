@@ -197,15 +197,15 @@ def extract_document(
             text_or_documents=document_text,
             prompt_description=domain.prompt,
             examples=domain.examples,
-            model_id=model,          # still needed for format-type detection
-            model=lx_model,          # None → factory used (Gemini); set → bypasses factory
+            model_id=model,          # used for format-type detection; Gemini factory path
+            model=lx_model,          # None → factory used (Gemini); set → bypasses factory (OpenAI/Claude)
             extraction_passes=passes,
             max_workers=config.get("max_workers", 10),
             batch_length=10,
             max_char_buffer=effective_buffer,
             show_progress=False,
             api_key=api_key,         # used by Gemini factory path; ignored for OpenAI
-            resolver_params={"suppress_parse_errors": True},
+            resolver_params={},
             language_model_params={"max_output_tokens": config.get("max_output_tokens", 2048)},
             prompt_validation_level=pv.PromptValidationLevel.OFF,
         )
@@ -214,10 +214,18 @@ def extract_document(
             f"Extraction failed ({type(exc).__name__}): {exc}"
         ) from exc
 
-    logger.info(
-        "lx.extract done — %s/%s: %d extractions",
-        comparison_id, doc_slot, len(result.extractions or []),
-    )
+    n_extractions = len(result.extractions or [])
+    if n_extractions == 0:
+        logger.warning(
+            "lx.extract returned 0 extractions for %s/%s — "
+            "check that the model returned valid JSON in a ```json fence",
+            comparison_id, doc_slot,
+        )
+    else:
+        logger.info(
+            "lx.extract done — %s/%s: %d extractions",
+            comparison_id, doc_slot, n_extractions,
+        )
 
     # Save JSONL (immutable source record)
     lx.io.save_annotated_documents(
