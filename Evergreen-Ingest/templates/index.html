@@ -132,48 +132,111 @@
 
 <section class="pipeline-note">
   <h2>Where this fits</h2>
-
-  <div class="mermaid">
-flowchart TB
-    user["👤 Citizen / Staff\nasking questions"]
-
-    subgraph ai ["💬 AI Assistant layer"]
-        llm["AI Assistant\nanswers questions from the Knowledge Base"]
-    end
-
-    subgraph kb ["📚 Knowledge Base layer"]
-        embed["Verified Policy Content\nstored &amp; searchable"]
-    end
-
-    subgraph ingest_layer ["🔍 Drift Detection layer"]
-        ingest["Evergreen Ingest\ncompares policy ↔ implementation\nflags what's out of sync"]
-        evals["Evergreen Evals\nautomated answer checks"]
-        optimize["Evergreen Optimize\nmonitors live AI behavior"]
-    end
-
-    subgraph docs_layer ["📄 Source Documents"]
-        policy["Source Policy\n(the authority)"]
-        artifact["Implementation Artifact\n(training manual, FAQ, script)"]
-    end
-
-    policy --> ingest
-    artifact --> ingest
-    ingest -->|verified, corrected content| embed
-    embed --> llm
-    llm --> user
-    ingest -.->|generates answer checks| evals
-    evals -.->|flags gaps → triggers re-audit| ingest
-    llm -.->|monitored by| optimize
-    optimize -.->|unresolved gaps → triggers re-audit| ingest
-
-    style ingest fill:#eef2ff,stroke:#6366f1,stroke-width:3px,color:#3730a3,font-weight:bold
-    style evals fill:#f0fdf4,stroke:#4ade80,stroke-width:2px,color:#166534
-    style optimize fill:#f0fdf4,stroke:#4ade80,stroke-width:2px,color:#166534
-    style llm fill:#fefce8,stroke:#facc15,stroke-width:1px,color:#713f12
-    style user fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
-    style embed fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
-    style policy fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
-    style artifact fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
+  <div class="pipeline-diagram">
+    <svg width="100%" viewBox="0.00 0.00 1190.00 322.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="max-width:900px;display:block;margin:0 auto;">
+    <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(36 286)">
+    <g id="clust1" class="cluster">
+    <path fill="#eaf3de" stroke="#97c459" stroke-width="0.5" d="M140,-8C140,-8 644.5,-8 644.5,-8 650.5,-8 656.5,-14 656.5,-20 656.5,-20 656.5,-69 656.5,-69 656.5,-75 650.5,-81 644.5,-81 644.5,-81 140,-81 140,-81 134,-81 128,-75 128,-69 128,-69 128,-20 128,-20 128,-14 134,-8 140,-8"/>
+    <text text-anchor="middle" x="392.25" y="-67.4" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#27500a">Policy-as-code (Evergreen Ingest)</text>
+    </g>
+    <g id="node1" class="node">
+    <path fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5" d="M65,-52C65,-52 12,-52 12,-52 6,-52 0,-46 0,-40 0,-40 0,-28 0,-28 0,-22 6,-16 12,-16 12,-16 65,-16 65,-16 71,-16 77,-22 77,-28 77,-28 77,-40 77,-40 77,-46 71,-52 65,-52"/>
+    <text text-anchor="middle" x="38.5" y="-37.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">Policy</text>
+    <text text-anchor="middle" x="38.5" y="-25.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">documents</text>
+    </g>
+    <g id="node2" class="node">
+    <path fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5" d="M198,-52C198,-52 148,-52 148,-52 142,-52 136,-46 136,-40 136,-40 136,-28 136,-28 136,-22 142,-16 148,-16 148,-16 198,-16 198,-16 204,-16 210,-22 210,-28 210,-28 210,-40 210,-40 210,-46 204,-52 198,-52"/>
+    <text text-anchor="middle" x="173" y="-37.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">Parse</text>
+    <text text-anchor="middle" x="173" y="-25.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">PDF to MD</text>
+    </g>
+    <g id="edge4" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M77.11,-34C92.18,-34 109.69,-34 125.53,-34"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="125.66,-37.5 135.66,-34 125.66,-30.5 125.66,-37.5"/>
+    </g>
+    <g id="node3" class="node">
+    <path fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5" d="M313,-52C313,-52 281,-52 281,-52 275,-52 269,-46 269,-40 269,-40 269,-28 269,-28 269,-22 275,-16 281,-16 281,-16 313,-16 313,-16 319,-16 325,-22 325,-28 325,-28 325,-40 325,-40 325,-46 319,-52 313,-52"/>
+    <text text-anchor="middle" x="297" y="-37.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">Extract</text>
+    <text text-anchor="middle" x="297" y="-25.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">Rules</text>
+    </g>
+    <g id="edge1" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M210.27,-34C225.57,-34 243.36,-34 258.76,-34"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="258.97,-37.5 268.97,-34 258.97,-30.5 258.97,-37.5"/>
+    </g>
+    <g id="node4" class="node">
+    <path fill="#faece7" stroke="#f0997b" stroke-width="0.5" d="M428,-52C428,-52 396,-52 396,-52 390,-52 384,-46 384,-40 384,-40 384,-28 384,-28 384,-22 390,-16 396,-16 396,-16 428,-16 428,-16 434,-16 440,-22 440,-28 440,-28 440,-40 440,-40 440,-46 434,-52 428,-52"/>
+    <text text-anchor="middle" x="412" y="-37.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#712b13">Review</text>
+    <text text-anchor="middle" x="412" y="-25.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#712b13">Expert</text>
+    </g>
+    <g id="edge2" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M325.07,-34C339.63,-34 357.83,-34 373.71,-34"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="373.76,-37.5 383.76,-34 373.76,-30.5 373.76,-37.5"/>
+    </g>
+    <g id="node5" class="node">
+    <path fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5" d="M636.5,-52C636.5,-52 606.5,-52 606.5,-52 600.5,-52 594.5,-46 594.5,-40 594.5,-40 594.5,-28 594.5,-28 594.5,-22 600.5,-16 606.5,-16 606.5,-16 636.5,-16 636.5,-16 642.5,-16 648.5,-22 648.5,-28 648.5,-28 648.5,-40 648.5,-40 648.5,-46 642.5,-52 636.5,-52"/>
+    <text text-anchor="middle" x="621.5" y="-37.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">Embed</text>
+    <text text-anchor="middle" x="621.5" y="-25.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#444441">Index</text>
+    </g>
+    <g id="edge3" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M440.13,-34C477.01,-34 543.09,-34 584.21,-34"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="584.35,-37.5 594.35,-34 584.35,-30.5 584.35,-37.5"/>
+    </g>
+    <g id="node6" class="node">
+    <path fill="#eeedfe" stroke="#afa9ec" stroke-width="0.5" d="M667,-174C667,-174 576,-174 576,-174 570,-174 564,-168 564,-162 564,-162 564,-150 564,-150 564,-144 570,-138 576,-138 576,-138 667,-138 667,-138 673,-138 679,-144 679,-150 679,-150 679,-162 679,-162 679,-168 673,-174 667,-174"/>
+    <text text-anchor="middle" x="621.5" y="-159.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#3c3489">Quality testing</text>
+    <text text-anchor="middle" x="621.5" y="-147.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#3c3489">(Evergreen Evals)</text>
+    </g>
+    <g id="edge5" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M621.5,-52C621.5,-72 621.5,-104.56 621.5,-127.92"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="618,-127.92 621.5,-137.92 625,-127.92 618,-127.92"/>
+    <text text-anchor="middle" x="613.5" y="-92.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#888780">ground truth</text>
+    </g>
+    <g id="node8" class="node">
+    <path fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.5" d="M871,-65C871,-65 804,-65 804,-65 798,-65 792,-59 792,-53 792,-53 792,-41 792,-41 792,-35 798,-29 804,-29 804,-29 871,-29 871,-29 877,-29 883,-35 883,-41 883,-41 883,-53 883,-53 883,-59 877,-65 871,-65"/>
+    <text text-anchor="middle" x="837.5" y="-50.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#0c447c">AI application</text>
+    <text text-anchor="middle" x="837.5" y="-38.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#0c447c">(Agency)</text>
+    </g>
+    <g id="edge6" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M648.74,-35.59C681.63,-37.59 738.86,-41.07 781.52,-43.66"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="781.56,-47.17 791.75,-44.28 781.98,-40.18 781.56,-47.17"/>
+    <text text-anchor="middle" x="735.5" y="-44.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#888780">context</text>
+    </g>
+    <g id="edge7" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M658.32,-137.76C695.08,-119.03 752.35,-89.86 792,-69.67"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="793.6,-72.78 800.92,-65.12 790.42,-66.54 793.6,-72.78"/>
+    <text text-anchor="middle" x="735.5" y="-113.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#888780">quality gate</text>
+    </g>
+    <g id="node7" class="node">
+    <path fill="#e1f5ee" stroke="#5dcaa5" stroke-width="0.5" d="M1106,-173C1106,-173 995,-173 995,-173 989,-173 983,-167 983,-161 983,-161 983,-149 983,-149 983,-143 989,-137 995,-137 995,-137 1106,-137 1106,-137 1112,-137 1118,-143 1118,-149 1118,-149 1118,-161 1118,-161 1118,-167 1112,-173 1106,-173"/>
+    <text text-anchor="middle" x="1050.5" y="-158.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#085041">Monitoring</text>
+    <text text-anchor="middle" x="1050.5" y="-146.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#085041">(Evergreen Optimize)</text>
+    </g>
+    <g id="edge11" class="edge">
+    <path fill="none" stroke="#b4b2a9" stroke-dasharray="5,2" d="M1023.55,-173.03C985.02,-197.98 909.59,-240 838.5,-240 296,-240 296,-240 296,-240 214.39,-240 186.2,-118.82 177.49,-62.34"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="180.93,-61.68 176.04,-52.28 174,-62.68 180.93,-61.68"/>
+    <text text-anchor="middle" x="502" y="-242.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#b4b2a9">source update</text>
+    </g>
+    <g id="edge10" class="edge">
+    <path fill="none" stroke="#534ab7" stroke-dasharray="5,2" d="M982.72,-155.16C902.8,-155.34 769.75,-155.66 689.66,-155.84"/>
+    <polygon fill="#534ab7" stroke="#534ab7" points="689.19,-152.34 679.2,-155.87 689.21,-159.34 689.19,-152.34"/>
+    <text text-anchor="middle" x="837.5" y="-167.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#534ab7">gaps,</text>
+    <text text-anchor="middle" x="837.5" y="-157.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#534ab7">new tests</text>
+    </g>
+    <g id="edge9" class="edge">
+    <path fill="none" stroke="#0f6e56" stroke-dasharray="5,2" d="M876.96,-65.09C899.53,-75.84 928.53,-89.9 954,-103 971.85,-112.18 991.34,-122.7 1008.04,-131.87"/>
+    <polygon fill="#0f6e56" stroke="#0f6e56" points="1006.55,-135.05 1017,-136.81 1009.93,-128.92 1006.55,-135.05"/>
+    <text text-anchor="middle" x="933" y="-115.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#0f6e56">traces +</text>
+    <text text-anchor="middle" x="933" y="-105.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#0f6e56">feedback</text>
+    </g>
+    <g id="node9" class="node">
+    <ellipse fill="transparent" stroke="#b4b2a9" stroke-width="0.5" cx="1050.5" cy="-38" rx="21.5" ry="21.5"/>
+    <text text-anchor="middle" x="1050.5" y="-35.2" font-family="Helvetica,sans-Serif" font-size="11.00" fill="#888780">User</text>
+    </g>
+    <g id="edge8" class="edge">
+    <path fill="none" stroke="#b4b2a9" d="M883.25,-45.09C923.92,-43.36 982.87,-40.84 1018.55,-39.32"/>
+    <polygon fill="#b4b2a9" stroke="#b4b2a9" points="1018.99,-42.8 1028.83,-38.88 1018.69,-35.81 1018.99,-42.8"/>
+    </g>
+    </g>
+    </svg>
   </div>
 </section>
 
@@ -201,10 +264,6 @@ flowchart TB
   <p>Evergreen Ingest · Proof of concept · Source grounding powered by
   <a href="https://github.com/google-deepmind/langextract" target="_blank">langextract</a></p>
 </footer>
-<script type="module">
-  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
-</script>
 <script>
 // Demo chips
 document.querySelectorAll('.demo-chip').forEach(function(btn) {
