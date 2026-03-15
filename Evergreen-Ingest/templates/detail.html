@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Parameter {{ param.index }} — {{ param.extraction_class }} — Evergreen Ingest</title>
+<title>{{ param.extraction_class }} &mdash; Parameter {{ param.index + 1 }} &mdash; Evergreen Ingest</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
   <div class="header-inner">
     <a href="/" class="logo">Evergreen Ingest</a>
     <nav class="header-nav">
-      <a href="/compare/{{ comparison_id }}">← All Parameters</a>
-      &nbsp;·&nbsp;
+      <a href="/compare/{{ comparison_id }}">&larr; All Parameters</a>
+      &nbsp;&middot;&nbsp;
       <a href="/compare/{{ comparison_id }}/report">Report</a>
     </nav>
   </div>
@@ -20,34 +20,114 @@
 
 <main class="detail-page">
 
-  <!-- Navigation -->
-  <div class="param-nav">
+  <!-- Breadcrumb nav: prev / position / next -->
+  <div class="detail-nav">
     {% if prev_idx is not none %}
-    <a href="/compare/{{ comparison_id }}/param/{{ prev_idx }}" class="btn-secondary">← Prev</a>
+    <a href="/compare/{{ comparison_id }}/param/{{ prev_idx }}" class="detail-nav-btn" title="Previous finding (left arrow)">&larr; Prev</a>
     {% else %}
-    <span class="btn-secondary disabled">← Prev</span>
+    <span class="detail-nav-btn detail-nav-btn-disabled">&larr; Prev</span>
     {% endif %}
 
-    <span class="param-nav-label">
-      Parameter {{ param.index + 1 }} &nbsp;·&nbsp;
+    <div class="detail-nav-center">
       <span class="status-badge status-{{ param.status }}">{{ param.status }}</span>
-      &nbsp;·&nbsp; {{ param.extraction_class }}
-    </span>
+      <span class="detail-nav-class">{{ param.extraction_class }}</span>
+      {% if param.drifted_attributes %}
+      <span class="detail-nav-drift-hint">
+        Drifted: {% for k in param.drifted_attributes %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+      </span>
+      {% endif %}
+    </div>
 
     {% if next_idx is not none %}
-    <a href="/compare/{{ comparison_id }}/param/{{ next_idx }}" class="btn-secondary">Next →</a>
+    <a href="/compare/{{ comparison_id }}/param/{{ next_idx }}" class="detail-nav-btn" title="Next finding (right arrow)">Next &rarr;</a>
     {% else %}
-    <span class="btn-secondary disabled">Next →</span>
+    <span class="detail-nav-btn detail-nav-btn-disabled">Next &rarr;</span>
     {% endif %}
   </div>
 
-  <!-- Side-by-side comparison -->
+  <!-- Hero: value comparison -->
+  {% if param.status != 'matched' %}
+  <div class="detail-hero detail-hero-{{ param.status }}">
+    {% if param.status == 'drifted' %}
+      {% set p_val = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") if param.policy else None %}
+      {% set i_val = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") if param.implementation else None %}
+      {% if p_val or i_val %}
+      <div class="hero-value-comparison">
+        <div class="hero-side hero-policy">
+          <div class="hero-side-label">Policy says</div>
+          <div class="hero-side-value">{{ p_val or "—" }}</div>
+        </div>
+        <div class="hero-arrow">&#x2192;</div>
+        <div class="hero-side hero-impl">
+          <div class="hero-side-label">Implementation says</div>
+          <div class="hero-side-value hero-side-value-drift">{{ i_val or "—" }}</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="hero-value-comparison">
+        <div class="hero-side hero-policy">
+          <div class="hero-side-label">Policy</div>
+          <div class="hero-side-value">{{ param.policy.extraction_text | truncate(120) if param.policy else "—" }}</div>
+        </div>
+        <div class="hero-arrow">&#x2260;</div>
+        <div class="hero-side hero-impl">
+          <div class="hero-side-label">Implementation</div>
+          <div class="hero-side-value hero-side-value-drift">{{ param.implementation.extraction_text | truncate(120) if param.implementation else "—" }}</div>
+        </div>
+      </div>
+      {% endif %}
+    {% elif param.status == 'missing' %}
+      <div class="hero-absent">
+        <div class="hero-absent-label">This parameter exists in the policy but is absent from the implementation.</div>
+        {% set p_val = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") if param.policy else None %}
+        {% if p_val %}
+        <div class="hero-absent-value">{{ p_val }}</div>
+        {% endif %}
+      </div>
+    {% elif param.status == 'extra' %}
+      <div class="hero-absent hero-extra">
+        <div class="hero-absent-label">This parameter appears in the implementation but has no match in the policy.</div>
+        {% set i_val = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") if param.implementation else None %}
+        {% if i_val %}
+        <div class="hero-absent-value">{{ i_val }}</div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Current decision banner (if already annotated) -->
+  {% if decision %}
+  <div class="detail-decision-banner decision-banner-{{ decision.decision }}" id="decision-banner">
+    <div class="ddb-left">
+      <span class="ddb-icon">
+        {% if decision.decision == 'confirmed' %}&#x2713;{% elif decision.decision == 'edited' %}&#x270E;{% elif decision.decision == 'rejected' %}&#x2715;{% endif %}
+      </span>
+      <div class="ddb-text">
+        <strong>{{ decision.decision | title }}</strong>
+        {% if decision.note %}&nbsp;&mdash;&nbsp;<em>{{ decision.note }}</em>{% endif %}
+        {% if decision.edited_value %}<br><span class="ddb-edited-val">Corrected value: <code>{{ decision.edited_value | tojson }}</code></span>{% endif %}
+        <span class="ddb-timestamp">Saved {{ decision.decided_at }}</span>
+      </div>
+    </div>
+    <button class="ddb-change-btn" onclick="scrollToForm()">Change decision</button>
+  </div>
+  {% endif %}
+
+  <!-- Side-by-side source detail -->
   <div class="detail-grid">
 
-    <div class="detail-col detail-col-policy">
-      <h2>Policy</h2>
+    <div class="detail-col detail-col-policy{% if param.status == 'drifted' %} detail-col-drifted{% endif %}">
+      <h2>
+        <span class="detail-col-heading-label">Policy</span>
+        {% if param.policy and param.policy.viz_idx is not none %}
+        <a href="/compare/{{ comparison_id }}/viz/policy#idx={{ param.policy.viz_idx }}"
+           target="_blank" class="viz-link detail-source-link">View in source &rarr;</a>
+        {% endif %}
+      </h2>
       {% if param.policy %}
         <blockquote class="source-text">{{ param.policy.extraction_text }}</blockquote>
+        {% if param.policy.attributes %}
         <table class="attr-table">
           <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
           <tbody>
@@ -59,24 +139,28 @@
           {% endfor %}
           </tbody>
         </table>
+        {% endif %}
+        {% if param.policy.char_start is not none %}
         <p class="char-position">
-          {% if param.policy.viz_idx is not none %}
-          <a href="/compare/{{ comparison_id }}/viz/policy#idx={{ param.policy.viz_idx }}"
-             target="_blank" class="viz-link">View in source →</a>
-          {% endif %}
-          {% if param.policy.char_start is not none %}
-          <span class="char-range">chars {{ param.policy.char_start }}–{{ param.policy.char_end }}</span>
-          {% endif %}
+          <span class="char-range">chars {{ param.policy.char_start }}&ndash;{{ param.policy.char_end }}</span>
         </p>
+        {% endif %}
       {% else %}
         <div class="absent-notice">Not present in policy</div>
       {% endif %}
     </div>
 
-    <div class="detail-col detail-col-impl">
-      <h2>Implementation</h2>
+    <div class="detail-col detail-col-impl{% if param.status == 'drifted' %} detail-col-drifted{% endif %}">
+      <h2>
+        <span class="detail-col-heading-label">Implementation</span>
+        {% if param.implementation and param.implementation.viz_idx is not none %}
+        <a href="/compare/{{ comparison_id }}/viz/implementation#idx={{ param.implementation.viz_idx }}"
+           target="_blank" class="viz-link detail-source-link">View in source &rarr;</a>
+        {% endif %}
+      </h2>
       {% if param.implementation %}
         <blockquote class="source-text">{{ param.implementation.extraction_text }}</blockquote>
+        {% if param.implementation.attributes %}
         <table class="attr-table">
           <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
           <tbody>
@@ -88,15 +172,12 @@
           {% endfor %}
           </tbody>
         </table>
+        {% endif %}
+        {% if param.implementation.char_start is not none %}
         <p class="char-position">
-          {% if param.implementation.viz_idx is not none %}
-          <a href="/compare/{{ comparison_id }}/viz/implementation#idx={{ param.implementation.viz_idx }}"
-             target="_blank" class="viz-link">View in source →</a>
-          {% endif %}
-          {% if param.implementation.char_start is not none %}
-          <span class="char-range">chars {{ param.implementation.char_start }}–{{ param.implementation.char_end }}</span>
-          {% endif %}
+          <span class="char-range">chars {{ param.implementation.char_start }}&ndash;{{ param.implementation.char_end }}</span>
         </p>
+        {% endif %}
       {% else %}
         <div class="absent-notice">Not present in implementation</div>
       {% endif %}
@@ -104,102 +185,154 @@
 
   </div>
 
-  {% if param.drifted_attributes %}
-  <div class="drift-callout">
-    <strong>Drifted attributes:</strong>
-    {% for k in param.drifted_attributes %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
-    &nbsp;·&nbsp; Reason: {{ param.drift_reason or "value mismatch" }}
-  </div>
-  {% endif %}
+  <!-- Annotation form -->
+  {% if param.status != 'matched' %}
+  <section class="detail-annotation" id="annotation-form">
+    <h2 class="detail-annotation-heading">Your decision</h2>
+    <p class="detail-annotation-hint">
+      Choose how to classify this finding. Your decision is saved immediately and visible in the report.
+    </p>
 
-  <!-- Current decision (if any) -->
-  {% if decision %}
-  <div class="current-decision decision-{{ decision.decision }}">
-    <strong>Current decision:</strong> {{ decision.decision }}
-    {% if decision.note %}<br><em>Note: {{ decision.note }}</em>{% endif %}
-    {% if decision.edited_value %}<br><strong>Edited value:</strong> <code>{{ decision.edited_value | tojson }}</code>{% endif %}
-    <br><small>Decided at {{ decision.decided_at }}</small>
-  </div>
-  {% endif %}
-
-  <!-- Validation form (only for non-matched) -->
-  {% if param.status != "matched" %}
-  <section class="validate-section">
-    <h2>Validate this finding</h2>
     <form method="POST"
           action="/compare/{{ comparison_id }}/param/{{ param.index }}"
-          class="validate-form">
+          class="annotation-form"
+          id="annotation-form-el">
 
-      <div class="radio-group">
-        <label class="radio-option radio-confirmed">
+      <!-- Three large decision cards -->
+      <div class="decision-cards">
+
+        <label class="decision-card decision-card-confirm{% if decision and decision.decision == 'confirmed' %} decision-card-selected{% endif %}">
           <input type="radio" name="decision" value="confirmed"
-                 {% if decision and decision.decision == "confirmed" %}checked{% endif %}
-                 onchange="toggleEdit(this)">
-          <span>
-            <strong>Confirm drift</strong> — Policy is correct; flag implementation for update
-          </span>
+                 {% if decision and decision.decision == 'confirmed' %}checked{% endif %}
+                 onchange="onDecisionChange(this)">
+          <div class="dc-header">
+            <span class="dc-icon dc-icon-confirm">&#x2713;</span>
+            <span class="dc-title">Confirm</span>
+          </div>
+          <p class="dc-desc">Policy is correct. Flag the implementation for update.</p>
         </label>
-        <label class="radio-option radio-edited">
+
+        <label class="decision-card decision-card-edit{% if decision and decision.decision == 'edited' %} decision-card-selected{% endif %}">
           <input type="radio" name="decision" value="edited"
-                 {% if decision and decision.decision == "edited" %}checked{% endif %}
-                 onchange="toggleEdit(this)">
-          <span>
-            <strong>Edit corrected value</strong> — Supply the correct attribute values
-          </span>
+                 {% if decision and decision.decision == 'edited' %}checked{% endif %}
+                 onchange="onDecisionChange(this)">
+          <div class="dc-header">
+            <span class="dc-icon dc-icon-edit">&#x270E;</span>
+            <span class="dc-title">Edit</span>
+          </div>
+          <p class="dc-desc">Supply the correct value — extraction was wrong or context differs.</p>
         </label>
-        <label class="radio-option radio-rejected">
+
+        <label class="decision-card decision-card-reject{% if decision and decision.decision == 'rejected' %} decision-card-selected{% endif %}">
           <input type="radio" name="decision" value="rejected"
-                 {% if decision and decision.decision == "rejected" %}checked{% endif %}
-                 onchange="toggleEdit(this)">
-          <span>
-            <strong>Reject / escalate</strong> — Not a real drift, or policy itself needs review
-          </span>
+                 {% if decision and decision.decision == 'rejected' %}checked{% endif %}
+                 onchange="onDecisionChange(this)">
+          <div class="dc-header">
+            <span class="dc-icon dc-icon-reject">&#x2715;</span>
+            <span class="dc-title">Reject</span>
+          </div>
+          <p class="dc-desc">Not a real drift, false positive, or the policy itself needs review.</p>
         </label>
+
       </div>
 
-      <div id="edit-block" class="edit-block" style="display: none;">
-        <label for="edited_json">Corrected attribute values (JSON):</label>
+      <!-- Edit block: JSON value editor (shown only when "edited" is selected) -->
+      <div id="edit-block" class="detail-edit-block" style="display:none;">
+        <label class="edit-block-label" for="edited_json">Corrected attribute values (JSON)</label>
+        <p class="edit-block-hint">Edit the JSON below to supply the correct values. The original extraction is preserved above for reference.</p>
         <textarea name="edited_json"
                   id="edited_json"
-                  rows="6"
+                  rows="7"
                   class="json-editor"
-                  placeholder='{"parameter": "filing threshold", "value": "$14,600", ...}'>{% if decision and decision.edited_value %}{{ decision.edited_value | tojson(indent=2) }}{% elif param.implementation %}{{ param.implementation.attributes | tojson(indent=2) }}{% endif %}</textarea>
+                  placeholder='{"parameter": "filing threshold", "value": "$14,600"}'
+        >{% if decision and decision.edited_value %}{{ decision.edited_value | tojson(indent=2) }}{% elif param.implementation %}{{ param.implementation.attributes | tojson(indent=2) }}{% elif param.policy %}{{ param.policy.attributes | tojson(indent=2) }}{% endif %}</textarea>
       </div>
 
-      <div class="form-group">
-        <label for="note">Note (optional):</label>
+      <!-- Note -->
+      <div class="detail-note-group">
+        <label for="note" class="detail-note-label">Note <span class="detail-note-optional">(optional)</span></label>
         <textarea name="note"
                   id="note"
-                  rows="3"
-                  placeholder="Add context, escalation note, or reference…">{% if decision %}{{ decision.note }}{% endif %}</textarea>
+                  rows="2"
+                  class="detail-note-textarea"
+                  placeholder="Add context, an escalation note, or a reference to a ticket&hellip;"
+        >{% if decision %}{{ decision.note }}{% endif %}</textarea>
       </div>
 
-      <div class="form-actions">
-        <button type="submit" class="btn-primary">Save decision</button>
+      <!-- Submit -->
+      <div class="detail-form-actions">
+        <button type="submit" class="btn-primary btn-save-decision" id="submit-btn">Save decision</button>
+        {% if prev_idx is not none %}
+        <a href="/compare/{{ comparison_id }}/param/{{ prev_idx }}" class="btn-secondary">&larr; Prev</a>
+        {% endif %}
+        {% if next_idx is not none %}
+        <a href="/compare/{{ comparison_id }}/param/{{ next_idx }}" class="btn-secondary btn-next-finding">Next finding &rarr;</a>
+        {% endif %}
+        <a href="/compare/{{ comparison_id }}" class="btn-secondary">Back to list</a>
       </div>
+
     </form>
   </section>
   {% else %}
-  <p class="matched-note">This parameter matched in both documents — no validation required.</p>
+  <div class="matched-notice">
+    <span class="matched-notice-icon">&#x2713;</span>
+    This parameter matched in both documents &mdash; no annotation required.
+  </div>
   {% endif %}
 
 </main>
 
 <footer>
-  <p>Evergreen Ingest &nbsp;·&nbsp; <a href="/compare/{{ comparison_id }}/report">View full report</a></p>
+  <p>Evergreen Ingest &nbsp;&middot;&nbsp; <a href="/compare/{{ comparison_id }}/report">View full report</a></p>
 </footer>
 
 <script>
-function toggleEdit(radio) {
-  document.getElementById('edit-block').style.display =
-    radio.value === 'edited' ? 'block' : 'none';
+// Show/hide edit block when decision changes
+function onDecisionChange(radio) {
+  var editBlock = document.getElementById('edit-block');
+  if (editBlock) {
+    editBlock.style.display = (radio.value === 'edited') ? 'block' : 'none';
+  }
+  // Highlight selected card
+  document.querySelectorAll('.decision-card').forEach(function(card) {
+    card.classList.remove('decision-card-selected');
+  });
+  radio.closest('.decision-card').classList.add('decision-card-selected');
 }
 
-// Restore edit block visibility on page load if "edited" is already selected
-document.addEventListener('DOMContentLoaded', function () {
-  const editedRadio = document.querySelector('input[value="edited"]');
+// Scroll to annotation form (from "change decision" button in banner)
+function scrollToForm() {
+  var form = document.getElementById('annotation-form');
+  if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Restore edit block and card selection on page load
+document.addEventListener('DOMContentLoaded', function() {
+  var editedRadio = document.querySelector('input[value="edited"]');
   if (editedRadio && editedRadio.checked) {
-    document.getElementById('edit-block').style.display = 'block';
+    var editBlock = document.getElementById('edit-block');
+    if (editBlock) editBlock.style.display = 'block';
+  }
+
+  // Make clicking a decision card's label check the radio and highlight
+  document.querySelectorAll('.decision-card').forEach(function(card) {
+    var radio = card.querySelector('input[type="radio"]');
+    if (radio && radio.checked) {
+      card.classList.add('decision-card-selected');
+    }
+  });
+});
+
+// Keyboard shortcuts: left/right for prev/next
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft') {
+    var prev = document.querySelector('a[href*="/param/"][href$="{{ prev_idx }}"]');
+    if (prev) window.location.href = prev.href;
+  }
+  if (e.key === 'ArrowRight') {
+    var next = document.querySelector('.btn-next-finding');
+    if (next) window.location.href = next.href;
   }
 });
 </script>

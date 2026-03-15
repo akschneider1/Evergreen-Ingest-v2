@@ -11,6 +11,7 @@
   <div class="header-inner">
     <a href="/" class="logo">Evergreen Ingest</a>
     <nav class="header-nav">
+      <a href="/compare/{{ comparison.comparison_id }}/report">Report</a>
       <a href="/compare/{{ comparison.comparison_id }}/report.json">Download JSON</a>
       <button onclick="window.print()" class="btn-nav-print">Print</button>
     </nav>
@@ -18,11 +19,13 @@
 </header>
 
 <main>
+
+  <!-- Page title and doc names -->
   <div class="compare-meta">
     <h1>Drift Comparison</h1>
     <p class="doc-names">
-      <strong>Policy:</strong> {{ meta.policy_filename }} &nbsp;·&nbsp;
-      <strong>Implementation:</strong> {{ meta.implementation_filename }} &nbsp;·&nbsp;
+      <strong>Policy:</strong> {{ meta.policy_filename }} &nbsp;&middot;&nbsp;
+      <strong>Implementation:</strong> {{ meta.implementation_filename }} &nbsp;&middot;&nbsp;
       <strong>Domain:</strong> {{ meta.domain | title }}
     </p>
   </div>
@@ -44,118 +47,163 @@
       {% if comparison.summary.missing > 0 %}{% set _ = parts.append(comparison.summary.missing ~ " missing from implementation") %}{% endif %}
       {% if comparison.summary.extra > 0 %}{% set _ = parts.append(comparison.summary.extra ~ " extra in implementation") %}{% endif %}
       {{ parts | join(", ") | capitalize }}.
-      {% if progress.actionable > 0 %}
-      {{ progress.decided }} of {{ progress.actionable }} actionable parameter{% if progress.actionable != 1 %}s{% endif %} validated so far.
-      {% endif %}
     </p>
   </div>
   {% endif %}
 
-  <!-- Summary bar -->
-  <div class="summary-bar">
-    <div class="summary-item status-matched">
-      <span class="summary-count">{{ comparison.summary.matched }}</span>
-      <span class="summary-label">Matched</span>
+  <!-- Progress bar + summary stats -->
+  <div class="review-progress-strip">
+    <div class="rp-counts">
+      <span class="rp-item rp-item-matched">
+        <span class="rp-num">{{ comparison.summary.matched }}</span>
+        <span class="rp-lbl">Matched</span>
+      </span>
+      <span class="rp-divider"></span>
+      <span class="rp-item rp-item-drifted">
+        <span class="rp-num">{{ comparison.summary.drifted }}</span>
+        <span class="rp-lbl">Drifted</span>
+      </span>
+      <span class="rp-item rp-item-missing">
+        <span class="rp-num">{{ comparison.summary.missing }}</span>
+        <span class="rp-lbl">Missing</span>
+      </span>
+      <span class="rp-item rp-item-extra">
+        <span class="rp-num">{{ comparison.summary.extra }}</span>
+        <span class="rp-lbl">Extra</span>
+      </span>
+      <span class="rp-divider"></span>
+      <span class="rp-item rp-item-progress" id="rp-progress-label">
+        <span class="rp-num" id="rp-decided-num">{{ progress.decided }}</span>
+        <span class="rp-num-of">/</span>
+        <span class="rp-num" id="rp-actionable-num">{{ progress.actionable }}</span>
+        <span class="rp-lbl">Reviewed</span>
+      </span>
     </div>
-    <div class="summary-item status-drifted">
-      <span class="summary-count">{{ comparison.summary.drifted }}</span>
-      <span class="summary-label">Drifted</span>
-    </div>
-    <div class="summary-item status-missing">
-      <span class="summary-count">{{ comparison.summary.missing }}</span>
-      <span class="summary-label">Missing</span>
-    </div>
-    <div class="summary-item status-extra">
-      <span class="summary-count">{{ comparison.summary.extra }}</span>
-      <span class="summary-label">Extra</span>
-    </div>
-    <div class="summary-item progress-item">
-      <span class="summary-count">{{ progress.decided }}/{{ progress.actionable }}</span>
-      <span class="summary-label">Validated</span>
+    <div class="rp-bar-wrap">
+      <div class="rp-bar" id="rp-bar"
+           style="width: {% if progress.actionable > 0 %}{{ (progress.decided / progress.actionable * 100) | round | int }}{% else %}100{% endif %}%"></div>
     </div>
   </div>
 
-  <!-- Parameter table -->
-  <div class="param-table">
-    <div class="param-table-header">
-      <div class="col-left">Policy</div>
-      <div class="col-center">Status</div>
-      <div class="col-right">Implementation</div>
+  <!-- Filter + toggle controls -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Show:</span>
+      <button class="filter-btn filter-btn-active" data-filter="actionable" onclick="setFilter('actionable', this)">Needs review</button>
+      <button class="filter-btn" data-filter="all" onclick="setFilter('all', this)">All parameters</button>
     </div>
+    <div class="filter-group">
+      <label class="toggle-label">
+        <input type="checkbox" id="hide-reviewed" onchange="toggleHideReviewed(this.checked)" checked>
+        Hide reviewed
+      </label>
+    </div>
+  </div>
+
+  <!-- Parameter list — primary annotation surface -->
+  <div class="param-list" id="param-list">
 
     {% for param in comparison.params %}
-    <a href="/compare/{{ comparison.comparison_id }}/param/{{ param.index }}"
-       class="param-row param-row-{{ param.status }}{% if param.decision %} param-row-decided{% endif %}{% if param.status == 'matched' %} param-row-muted{% endif %}">
+    <div class="prow prow-{{ param.status }}{% if param.decision %} prow-decided{% endif %}{% if param.status == 'matched' %} prow-matched{% endif %}"
+         id="prow-{{ param.index }}"
+         data-index="{{ param.index }}"
+         data-status="{{ param.status }}"
+         data-decision="{{ param.decision.decision if param.decision else '' }}">
 
-      <div class="col-left">
-        {% if param.policy %}
-          {% if param.status == 'drifted' %}
-            <span class="extraction-class extraction-class-label">{{ param.extraction_class }}</span>
-            {% if param.policy.attributes %}
-              {% set key_attr = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or "" %}
-              {% if key_attr %}
-              <span class="attr-value-prominent">{{ key_attr }}</span>
-              {% else %}
-              <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
-              {% endif %}
+      <!-- Row summary line (always visible) -->
+      <div class="prow-summary">
+
+        <!-- Left: status indicator + param name + value delta -->
+        <div class="prow-left">
+          <span class="prow-indicator prow-indicator-{{ param.status }}" title="{{ param.status | title }}"></span>
+          <div class="prow-identity">
+            <span class="prow-class">{{ param.extraction_class }}</span>
+            {% if param.status == 'drifted' %}
+              <div class="prow-delta">
+                {% set p_val = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or param.policy.extraction_text | truncate(80) if param.policy else "" %}
+                {% set i_val = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or param.implementation.extraction_text | truncate(80) if param.implementation else "" %}
+                {% if p_val %}
+                <span class="delta-policy">{{ p_val }}</span>
+                <span class="delta-arrow">&#x2192;</span>
+                <span class="delta-impl">{{ i_val if i_val else "—" }}</span>
+                {% else %}
+                <span class="delta-text">{{ param.policy.extraction_text | truncate(100) if param.policy else "" }}</span>
+                {% endif %}
+              </div>
+            {% elif param.status == 'missing' %}
+              <div class="prow-delta prow-delta-absent">
+                <span class="delta-policy">{{ param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or param.policy.extraction_text | truncate(80) if param.policy else "" }}</span>
+                <span class="delta-missing-tag">not in implementation</span>
+              </div>
+            {% elif param.status == 'extra' %}
+              <div class="prow-delta prow-delta-extra">
+                <span class="delta-impl">{{ param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or param.implementation.extraction_text | truncate(80) if param.implementation else "" }}</span>
+                <span class="delta-extra-tag">not in policy</span>
+              </div>
             {% else %}
-              <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
+              <div class="prow-delta prow-delta-matched">
+                <span class="delta-matched-val">{{ param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or param.policy.extraction_text | truncate(80) if param.policy else "" }}</span>
+              </div>
             {% endif %}
+          </div>
+        </div>
+
+        <!-- Center: decision state indicator -->
+        <div class="prow-state">
+          {% if param.decision %}
+            <span class="prow-decision-badge decision-badge decision-{{ param.decision.decision }}"
+                  id="badge-{{ param.index }}">
+              {% if param.decision.decision == 'confirmed' %}&#x2713; confirmed
+              {% elif param.decision.decision == 'edited' %}&#x270E; edited
+              {% elif param.decision.decision == 'rejected' %}&#x2715; rejected
+              {% endif %}
+            </span>
           {% else %}
-            <span class="extraction-class">{{ param.extraction_class }}</span>
-            <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
-            {% if param.policy.attributes %}
-              {% set key_attr = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or "" %}
-              {% if key_attr %}
-              <span class="attr-preview">{{ key_attr }}</span>
-              {% endif %}
-            {% endif %}
+            <span class="prow-pending-dot" id="badge-{{ param.index }}" title="Pending review"></span>
           {% endif %}
-        {% else %}
-          <span class="empty-side">—</span>
-        {% endif %}
-      </div>
+        </div>
 
-      <div class="col-center">
-        <span class="status-badge status-{{ param.status }}">{{ param.status }}</span>
-        {% if param.decision %}
-          <span class="decision-badge decision-{{ param.decision.decision }}">
-            {{ param.decision.decision }}
-          </span>
-        {% endif %}
-      </div>
-
-      <div class="col-right">
-        {% if param.implementation %}
-          {% if param.status == 'drifted' %}
-            <span class="extraction-class extraction-class-label">{{ param.extraction_class }}</span>
-            {% if param.implementation.attributes %}
-              {% set key_attr = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or "" %}
-              {% if key_attr %}
-              <span class="attr-value-prominent">{{ key_attr }}</span>
-              {% else %}
-              <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
-              {% endif %}
-            {% else %}
-              <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
-            {% endif %}
-          {% else %}
-            <span class="extraction-class">{{ param.extraction_class }}</span>
-            <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
-            {% if param.implementation.attributes %}
-              {% set key_attr = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or "" %}
-              {% if key_attr %}
-              <span class="attr-preview">{{ key_attr }}</span>
-              {% endif %}
-            {% endif %}
+        <!-- Right: quick-action buttons + expand link -->
+        <div class="prow-actions">
+          {% if param.status != 'matched' %}
+          <button class="qa-btn qa-confirm{% if param.decision and param.decision.decision == 'confirmed' %} qa-active{% endif %}"
+                  title="Confirm — policy is correct, flag implementation for update"
+                  onclick="quickDecide(event, {{ param.index }}, 'confirmed')">
+            &#x2713;
+          </button>
+          <button class="qa-btn qa-reject{% if param.decision and param.decision.decision == 'rejected' %} qa-active{% endif %}"
+                  title="Reject — not a real drift or false positive"
+                  onclick="quickDecide(event, {{ param.index }}, 'rejected')">
+            &#x2715;
+          </button>
           {% endif %}
-        {% else %}
-          <span class="empty-side">—</span>
-        {% endif %}
+          <a href="/compare/{{ comparison.comparison_id }}/param/{{ param.index }}"
+             class="qa-detail-link" title="Open full detail view">
+            Edit&nbsp;&#x2192;
+          </a>
+        </div>
+
       </div>
 
-    </a>
+      <!-- Inline note field — slides open on confirm/reject if desired -->
+      <div class="prow-note-row" id="note-row-{{ param.index }}" style="display:none;">
+        <input type="text"
+               class="prow-note-input"
+               id="note-input-{{ param.index }}"
+               placeholder="Optional note (press Enter to save, Esc to cancel)"
+               maxlength="500">
+        <button class="qa-btn qa-save-note" onclick="saveNote(event, {{ param.index }})">Save</button>
+        <button class="qa-btn qa-cancel-note" onclick="cancelNote({{ param.index }})">Cancel</button>
+      </div>
+
+    </div>
     {% endfor %}
+
+  </div>
+
+  <!-- Empty state for filtering -->
+  <div id="empty-state" class="empty-state" style="display:none;">
+    <p>All findings have been reviewed. <button class="link-btn" onclick="setFilter('all', document.querySelector('[data-filter=all]'))">Show all parameters</button></p>
   </div>
 
   <!-- Visualizations -->
@@ -167,7 +215,7 @@
          href="/compare/{{ comparison.comparison_id }}/viz/policy"
          target="_blank"
          rel="noopener"
-         class="viz-fullpage-link">Open full page →</a>
+         class="viz-fullpage-link">Open full page &rarr;</a>
     </div>
     <p class="viz-filename" id="viz-filename">{{ meta.policy_filename }}</p>
     <iframe id="viz-iframe"
@@ -179,11 +227,190 @@
 </main>
 
 <footer>
-  <p>Evergreen Ingest &nbsp;·&nbsp; Every finding grounded to exact source text.</p>
+  <p>Evergreen Ingest &nbsp;&middot;&nbsp; Every finding grounded to exact source text.</p>
 </footer>
 
 <script>
 (function () {
+
+  // -----------------------------------------------------------------------
+  // Constants from server
+  // -----------------------------------------------------------------------
+  var COMPARISON_ID = '{{ comparison.comparison_id }}';
+  var BASE_URL = '/compare/' + COMPARISON_ID + '/param/';
+
+  // -----------------------------------------------------------------------
+  // State tracking for progress counter
+  // -----------------------------------------------------------------------
+  var decidedCount = parseInt(document.getElementById('rp-decided-num').textContent, 10) || 0;
+  var actionableCount = parseInt(document.getElementById('rp-actionable-num').textContent, 10) || 0;
+
+  function updateProgressBar() {
+    var pct = actionableCount > 0 ? Math.round(decidedCount / actionableCount * 100) : 100;
+    document.getElementById('rp-bar').style.width = pct + '%';
+    document.getElementById('rp-decided-num').textContent = decidedCount;
+    applyFilterState();
+  }
+
+  // -----------------------------------------------------------------------
+  // Filter state
+  // -----------------------------------------------------------------------
+  var currentFilter = 'actionable';
+  var hideReviewed = true;
+
+  function setFilter(mode, btn) {
+    currentFilter = mode;
+    document.querySelectorAll('.filter-btn').forEach(function(b) {
+      b.classList.remove('filter-btn-active');
+    });
+    if (btn) btn.classList.add('filter-btn-active');
+    applyFilterState();
+  }
+
+  window.setFilter = setFilter;
+
+  function toggleHideReviewed(checked) {
+    hideReviewed = checked;
+    applyFilterState();
+  }
+  window.toggleHideReviewed = toggleHideReviewed;
+
+  function applyFilterState() {
+    var rows = document.querySelectorAll('.prow');
+    var anyVisible = false;
+    rows.forEach(function(row) {
+      var status = row.dataset.status;
+      var decision = row.dataset.decision;
+      var isActionable = (status !== 'matched');
+      var isDecided = (decision !== '');
+
+      var visible = true;
+      if (currentFilter === 'actionable' && !isActionable) visible = false;
+      if (hideReviewed && isDecided) visible = false;
+
+      row.style.display = visible ? '' : 'none';
+      if (visible) anyVisible = true;
+    });
+
+    var emptyEl = document.getElementById('empty-state');
+    // Only show empty state in actionable filter with no results
+    emptyEl.style.display = (!anyVisible && currentFilter === 'actionable') ? '' : 'none';
+  }
+
+  // -----------------------------------------------------------------------
+  // Quick-decide via fetch (no page reload)
+  // -----------------------------------------------------------------------
+  window.quickDecide = function(evt, index, decision) {
+    evt.stopPropagation();
+    var row = document.getElementById('prow-' + index);
+    var prevDecision = row.dataset.decision;
+
+    // Optimistic UI: update badge immediately
+    row.dataset.decision = decision;
+    row.classList.add('prow-decided');
+    updateBadge(index, decision);
+
+    // Track progress delta
+    if (prevDecision === '' && decision !== '') {
+      decidedCount++;
+    }
+
+    // POST to backend
+    var formData = new FormData();
+    formData.append('decision', decision);
+    formData.append('note', '');
+    formData.append('edited_json', '');
+
+    fetch(BASE_URL + index, {
+      method: 'POST',
+      body: formData,
+      redirect: 'manual'   // don't follow the redirect
+    }).then(function(resp) {
+      if (!resp.ok && resp.type !== 'opaqueredirect') {
+        // Rollback
+        row.dataset.decision = prevDecision;
+        if (prevDecision === '') {
+          decidedCount--;
+          row.classList.remove('prow-decided');
+          updateBadge(index, '');
+        }
+        console.error('Decision save failed', resp.status);
+      }
+    }).catch(function(err) {
+      console.error('Network error saving decision', err);
+    });
+
+    // Show optional note row briefly so user can annotate
+    var noteRow = document.getElementById('note-row-' + index);
+    if (noteRow) {
+      noteRow.style.display = 'flex';
+      document.getElementById('note-input-' + index).focus();
+    }
+
+    updateProgressBar();
+  };
+
+  // -----------------------------------------------------------------------
+  // Note saving
+  // -----------------------------------------------------------------------
+  window.saveNote = function(evt, index) {
+    evt.stopPropagation();
+    var noteInput = document.getElementById('note-input-' + index);
+    var note = noteInput ? noteInput.value.trim() : '';
+    var row = document.getElementById('prow-' + index);
+    var decision = row.dataset.decision;
+    if (!decision) return;
+
+    var formData = new FormData();
+    formData.append('decision', decision);
+    formData.append('note', note);
+    formData.append('edited_json', '');
+
+    fetch(BASE_URL + index, {
+      method: 'POST',
+      body: formData,
+      redirect: 'manual'
+    }).catch(function(err) { console.error(err); });
+
+    var noteRow = document.getElementById('note-row-' + index);
+    if (noteRow) noteRow.style.display = 'none';
+  };
+
+  window.cancelNote = function(index) {
+    var noteRow = document.getElementById('note-row-' + index);
+    if (noteRow) noteRow.style.display = 'none';
+  };
+
+  // Enter/Esc on note inputs
+  document.querySelectorAll('.prow-note-input').forEach(function(input) {
+    var idx = input.id.replace('note-input-', '');
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); saveNote(e, parseInt(idx, 10)); }
+      if (e.key === 'Escape') { cancelNote(parseInt(idx, 10)); }
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Badge rendering
+  // -----------------------------------------------------------------------
+  function updateBadge(index, decision) {
+    var badge = document.getElementById('badge-' + index);
+    if (!badge) return;
+    if (!decision) {
+      badge.className = 'prow-pending-dot';
+      badge.title = 'Pending review';
+      badge.textContent = '';
+    } else {
+      badge.className = 'prow-decision-badge decision-badge decision-' + decision;
+      badge.title = '';
+      var labels = { confirmed: '\u2713 confirmed', edited: '\u270E edited', rejected: '\u2715 rejected' };
+      badge.textContent = labels[decision] || decision;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Viz tabs
+  // -----------------------------------------------------------------------
   var VIZ_URLS = {
     policy: '/compare/{{ comparison.comparison_id }}/viz/policy',
     implementation: '/compare/{{ comparison.comparison_id }}/viz/implementation'
@@ -193,13 +420,69 @@
     implementation: '{{ meta.implementation_filename | e }}'
   };
 
-  window.switchViz = function (which) {
+  window.switchViz = function(which) {
     document.getElementById('viz-iframe').src = VIZ_URLS[which];
     document.getElementById('viz-fullpage-link').href = VIZ_URLS[which];
     document.getElementById('viz-filename').textContent = VIZ_NAMES[which];
     document.getElementById('tab-policy').classList.toggle('viz-tab-active', which === 'policy');
     document.getElementById('tab-implementation').classList.toggle('viz-tab-active', which === 'implementation');
   };
+
+  // -----------------------------------------------------------------------
+  // Keyboard navigation: J/K to move between rows, C/R to decide
+  // -----------------------------------------------------------------------
+  var focusedIndex = null;
+
+  function getVisibleRows() {
+    var rows = [];
+    document.querySelectorAll('.prow').forEach(function(row) {
+      if (row.style.display !== 'none') rows.push(row);
+    });
+    return rows;
+  }
+
+  function focusRow(row) {
+    if (focusedIndex !== null) {
+      var prev = document.querySelector('.prow[data-index="' + focusedIndex + '"]');
+      if (prev) prev.classList.remove('prow-focused');
+    }
+    row.classList.add('prow-focused');
+    focusedIndex = parseInt(row.dataset.index, 10);
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    // Don't intercept when typing in inputs
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    var visible = getVisibleRows();
+    if (!visible.length) return;
+
+    if (e.key === 'j' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (focusedIndex === null) { focusRow(visible[0]); return; }
+      var cur = visible.findIndex(function(r) { return parseInt(r.dataset.index, 10) === focusedIndex; });
+      if (cur < visible.length - 1) focusRow(visible[cur + 1]);
+    } else if (e.key === 'k' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (focusedIndex === null) { focusRow(visible[visible.length - 1]); return; }
+      var cur2 = visible.findIndex(function(r) { return parseInt(r.dataset.index, 10) === focusedIndex; });
+      if (cur2 > 0) focusRow(visible[cur2 - 1]);
+    } else if ((e.key === 'c') && focusedIndex !== null) {
+      var row = document.querySelector('.prow[data-index="' + focusedIndex + '"]');
+      if (row && row.dataset.status !== 'matched') quickDecide({ stopPropagation: function(){} }, focusedIndex, 'confirmed');
+    } else if ((e.key === 'r') && focusedIndex !== null) {
+      var row2 = document.querySelector('.prow[data-index="' + focusedIndex + '"]');
+      if (row2 && row2.dataset.status !== 'matched') quickDecide({ stopPropagation: function(){} }, focusedIndex, 'rejected');
+    } else if ((e.key === 'Enter' || e.key === 'e') && focusedIndex !== null) {
+      window.location.href = BASE_URL + focusedIndex;
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // Init
+  // -----------------------------------------------------------------------
+  applyFilterState();
+
 }());
 </script>
 </body>
