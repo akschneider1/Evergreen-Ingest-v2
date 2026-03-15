@@ -92,6 +92,7 @@ def extract_document(
         config.get("model_id", "gemini-2.5-flash"),
     )
 
+    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("LANGEXTRACT_API_KEY")
     result: lx.data.AnnotatedDocument = lx.extract(
         text_or_documents=document_text,
         prompt_description=domain.prompt,
@@ -100,6 +101,7 @@ def extract_document(
         extraction_passes=config.get("extraction_passes", 3),
         max_workers=config.get("max_workers", 4),
         show_progress=False,
+        api_key=api_key,
     )
 
     # Save JSONL (immutable source record)

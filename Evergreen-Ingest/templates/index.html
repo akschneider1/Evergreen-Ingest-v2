@@ -28,11 +28,18 @@
           <strong>Source Policy</strong>
           <span class="label-hint">The authority — what should be true</span>
         </label>
+        <details class="demo-picker">
+          <summary>Use demo data</summary>
+          <select name="policy_demo" id="policy_demo" onchange="toggleRequired('policy_file', this.value)">
+            <option value="">— none —</option>
+            <option value="tax_policy">Tax policy (Colorado DOR)</option>
+            <option value="benefits_policy">Benefits policy (Colorado CDLE)</option>
+          </select>
+        </details>
         <input type="file"
                id="policy_file"
                name="policy_file"
-               accept=".md,.txt,.html,.htm,.pdf,.docx"
-               required>
+               accept=".md,.txt,.html,.htm,.pdf,.docx">
         <span class="file-hint">PDF, DOCX, HTML, Markdown, or plain text · max 5 MB</span>
       </div>
 
@@ -41,11 +48,18 @@
           <strong>Implementation Artifact</strong>
           <span class="label-hint">What's actually in use — training manual, FAQ, script</span>
         </label>
+        <details class="demo-picker">
+          <summary>Use demo data</summary>
+          <select name="implementation_demo" id="implementation_demo" onchange="toggleRequired('implementation_file', this.value)">
+            <option value="">— none —</option>
+            <option value="tax_implementation">Tax training manual (stale)</option>
+            <option value="benefits_implementation">Benefits training manual (stale)</option>
+          </select>
+        </details>
         <input type="file"
                id="implementation_file"
                name="implementation_file"
-               accept=".md,.txt,.html,.htm,.pdf,.docx"
-               required>
+               accept=".md,.txt,.html,.htm,.pdf,.docx">
         <span class="file-hint">PDF, DOCX, HTML, Markdown, or plain text · max 5 MB</span>
       </div>
     </div>
@@ -89,5 +103,11 @@
   <p>Evergreen Ingest · Proof of concept · Source grounding powered by
   <a href="https://github.com/google-deepmind/langextract" target="_blank">langextract</a></p>
 </footer>
+<script>
+function toggleRequired(fileInputId, demoValue) {
+  const fileInput = document.getElementById(fileInputId);
+  fileInput.required = !demoValue;
+}
+</script>
 </body>
 </html>

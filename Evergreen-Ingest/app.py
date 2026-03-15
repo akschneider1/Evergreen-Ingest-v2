@@ -168,6 +168,14 @@ async def index(request: Request):
     )
 
 
+DEMO_FILES = {
+    "tax_policy": BASE_DIR / "tests/fixtures/policy_tax_current.md",
+    "tax_implementation": BASE_DIR / "tests/fixtures/training_manual_tax_stale.md",
+    "benefits_policy": BASE_DIR / "tests/fixtures/policy_benefits_current.html",
+    "benefits_implementation": BASE_DIR / "tests/fixtures/training_manual_benefits.html",
+}
+
+
 @app.post("/upload")
 async def upload(
     background_tasks: BackgroundTasks,
@@ -175,24 +183,36 @@ async def upload(
     implementation_file: UploadFile = Form(...),
     domain: str = Form(...),
     custom_prompt: str = Form(""),
+    policy_demo: str = Form(""),
+    implementation_demo: str = Form(""),
 ):
+    # Substitute demo fixture if no real file was uploaded
+    def _resolve(upload: UploadFile, demo_key: str) -> tuple[str, bytes]:
+        if demo_key and demo_key in DEMO_FILES and (not upload.filename or upload.size == 0):
+            fixture = DEMO_FILES[demo_key]
+            return fixture.name, fixture.read_bytes()
+        return upload.filename or "doc.txt", None  # bytes read below
+
+    policy_name, policy_demo_bytes = _resolve(policy_file, policy_demo)
+    impl_name, impl_demo_bytes = _resolve(implementation_file, implementation_demo)
+
     # Validate filenames
-    for f in (policy_file, implementation_file):
-        if not _allowed_suffix(f.filename or ""):
+    for fname in (policy_name, impl_name):
+        if not _allowed_suffix(fname):
             raise HTTPException(
                 status_code=400,
-                detail=f"Unsupported file type: {f.filename}. Accepted: .md .txt .html .pdf .docx",
+                detail=f"Unsupported file type: {fname}. Accepted: .md .txt .html .pdf .docx",
             )
 
     comparison_id = _make_comparison_id()
 
     # Read and size-check uploads
-    policy_bytes = await policy_file.read()
-    impl_bytes = await implementation_file.read()
+    policy_bytes = policy_demo_bytes if policy_demo_bytes is not None else await policy_file.read()
+    impl_bytes = impl_demo_bytes if impl_demo_bytes is not None else await implementation_file.read()
 
     for name, data in (
-        (policy_file.filename, policy_bytes),
-        (implementation_file.filename, impl_bytes),
+        (policy_name, policy_bytes),
+        (impl_name, impl_bytes),
     ):
         if len(data) > UPLOAD_MAX_BYTES:
             raise HTTPException(
@@ -201,8 +221,8 @@ async def upload(
             )
 
     # Save uploaded files
-    policy_suffix = Path(policy_file.filename or "doc.txt").suffix.lower()
-    impl_suffix = Path(implementation_file.filename or "doc.txt").suffix.lower()
+    policy_suffix = Path(policy_name).suffix.lower()
+    impl_suffix = Path(impl_name).suffix.lower()
 
     policy_path = SOURCES_DIR / f"{comparison_id}_policy{policy_suffix}"
     impl_path = SOURCES_DIR / f"{comparison_id}_implementation{impl_suffix}"
@@ -217,8 +237,8 @@ async def upload(
         "status": "pending",
         "domain": domain,
         "custom_prompt": custom_prompt,
-        "policy_filename": policy_file.filename,
-        "implementation_filename": implementation_file.filename,
+        "policy_filename": policy_name,
+        "implementation_filename": impl_name,
         "policy_path": str(policy_path.relative_to(BASE_DIR)),
         "implementation_path": str(impl_path.relative_to(BASE_DIR)),
         "error": None,

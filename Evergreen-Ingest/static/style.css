@@ -390,3 +390,24 @@ details.advanced summary { cursor: pointer; color: #6b7280; font-size: 0.9rem; }
   .finding-row { page-break-inside: avoid; }
   .viz-frame { display: none; }
 }
+
+.demo-picker {
+  margin-bottom: 0.5rem;
+}
+.demo-picker summary {
+  font-size: 0.8rem;
+  color: #6b7280;
+  cursor: pointer;
+  user-select: none;
+}
+.demo-picker summary:hover {
+  color: #374151;
+}
+.demo-picker select {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  width: 100%;
+}
