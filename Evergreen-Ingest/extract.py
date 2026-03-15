@@ -7,6 +7,7 @@ visualization, and returns the extraction results.
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import os
 from pathlib import Path
@@ -100,25 +101,44 @@ def extract_document(
         api_key = os.environ.get("OPENAI_API_KEY")
     else:
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("LANGEXTRACT_API_KEY")
-    result: lx.data.AnnotatedDocument = lx.extract(
-        text_or_documents=document_text,
-        prompt_description=domain.prompt,
-        examples=domain.examples,
-        model_id=model,
-        extraction_passes=passes,
-        max_workers=config.get("max_workers", 1),
-        max_char_buffer=config.get("max_char_buffer", 3000),
-        show_progress=False,
-        api_key=api_key,
-        # Suppress per-chunk JSON parse errors (e.g. truncated responses hitting
-        # output token limits) so the pipeline continues with partial results
-        # rather than crashing entirely.
-        resolver_params={"suppress_parse_errors": True},
-        language_model_params={
-            "max_output_tokens": config.get("max_output_tokens", 2048),
-            "timeout": config.get("api_timeout", 60),
-        },
-    )
+
+    if not api_key:
+        raise RuntimeError(
+            f"No API key found for model '{model}'. "
+            "Set OPENAI_API_KEY (or GOOGLE_API_KEY) in your environment or .env file."
+        )
+
+    # NOTE: langextract's OpenAI provider silently ignores 'timeout' in
+    # language_model_params — it is not forwarded to chat.completions.create().
+    # The OpenAI client defaults to a 600s read timeout, which causes silent
+    # hangs. Work around this by running lx.extract() in a thread with our
+    # own deadline.
+    extract_timeout = config.get("api_timeout", 90)
+
+    def _do_extract() -> lx.data.AnnotatedDocument:
+        return lx.extract(
+            text_or_documents=document_text,
+            prompt_description=domain.prompt,
+            examples=domain.examples,
+            model_id=model,
+            extraction_passes=passes,
+            max_workers=config.get("max_workers", 1),
+            max_char_buffer=config.get("max_char_buffer", 3000),
+            show_progress=False,
+            api_key=api_key,
+            resolver_params={"suppress_parse_errors": True},
+            language_model_params={"max_output_tokens": config.get("max_output_tokens", 2048)},
+        )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(_do_extract)
+        try:
+            result: lx.data.AnnotatedDocument = future.result(timeout=extract_timeout)
+        except concurrent.futures.TimeoutError:
+            raise RuntimeError(
+                f"Extraction timed out after {extract_timeout}s. "
+                "The API may be rate-limited or slow — try again, or check your key quota."
+            )
 
     # Save JSONL (immutable source record)
     jsonl_path = extraction_dir / f"{doc_slot}.jsonl"
