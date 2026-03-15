@@ -213,7 +213,8 @@ def _run_pipeline(
         logger.exception("[%s] Pipeline failed: %s", comparison_id, exc)
         meta["status"] = "error"
         meta["error"] = _friendly_error(exc, model_id=model_id)
-        meta["logs"].append(f"[error] {exc}")
+        meta["error_detail"] = f"{type(exc).__name__}: {exc}"
+        meta["logs"].append(f"[error] {type(exc).__name__}: {exc}")
         _write_meta(comparison_id, meta)
 
 

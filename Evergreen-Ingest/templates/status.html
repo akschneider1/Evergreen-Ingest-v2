@@ -133,7 +133,7 @@ async function poll() {
   }
 
   if (data.status === "error") {
-    showError(data.error || "An unknown error occurred.", data.logs || []);
+    showError(data.error || "An unknown error occurred.", data.logs || [], data.error_detail || "");
     return;
   }
 
@@ -146,13 +146,16 @@ async function poll() {
   setTimeout(poll, POLL_INTERVAL_MS);
 }
 
-function showError(msg, logs) {
+function showError(msg, logs, detail) {
   document.getElementById("processing-view").style.display = "none";
   document.getElementById("error-view").style.display = "";
   document.getElementById("error-message").innerHTML = msg;
-  if (logs && logs.length > 0) {
+  const logLines = [];
+  if (detail) logLines.push("Raw error: " + detail);
+  if (logs && logs.length > 0) logLines.push(...logs);
+  if (logLines.length > 0) {
     document.getElementById("error-log-section").style.display = "";
-    document.getElementById("error-log-body").textContent = logs.join("\n");
+    document.getElementById("error-log-body").textContent = logLines.join("\n");
   }
 }
 
@@ -162,7 +165,7 @@ setTrackerState("{{ meta.status }}");
 updateLogs({{ meta.logs | tojson }});
 {% endif %}
 {% if meta.status == "error" %}
-showError({{ (meta.error or "An error occurred.") | tojson }}, {{ (meta.logs or []) | tojson }});
+showError({{ (meta.error or "An error occurred.") | tojson }}, {{ (meta.logs or []) | tojson }}, {{ (meta.error_detail or "") | tojson }});
 {% else %}
 poll();
 {% endif %}
