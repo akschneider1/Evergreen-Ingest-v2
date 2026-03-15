@@ -26,6 +26,30 @@
     </p>
   </div>
 
+  <!-- Summary card -->
+  {% set total = comparison.summary.matched + comparison.summary.drifted + comparison.summary.missing + comparison.summary.extra %}
+  {% set out_of_sync = comparison.summary.drifted + comparison.summary.missing + comparison.summary.extra %}
+  {% if out_of_sync == 0 %}
+  <div class="drift-summary-card drift-summary-clean">
+    <p class="drift-summary-headline">All {{ total }} parameters matched — no drift detected.</p>
+    <p class="drift-summary-detail">The implementation is fully aligned with the policy. Nothing requires review.</p>
+  </div>
+  {% else %}
+  <div class="drift-summary-card drift-summary-drifted">
+    <p class="drift-summary-headline">{{ out_of_sync }} of {{ total }} parameter{% if total != 1 %}s{% endif %} {% if out_of_sync == 1 %}is{% else %}are{% endif %} out of sync.</p>
+    <p class="drift-summary-detail">
+      {% set parts = [] %}
+      {% if comparison.summary.drifted > 0 %}{% set _ = parts.append(comparison.summary.drifted ~ " drifted value" ~ ("s" if comparison.summary.drifted != 1 else "")) %}{% endif %}
+      {% if comparison.summary.missing > 0 %}{% set _ = parts.append(comparison.summary.missing ~ " missing from implementation") %}{% endif %}
+      {% if comparison.summary.extra > 0 %}{% set _ = parts.append(comparison.summary.extra ~ " extra in implementation") %}{% endif %}
+      {{ parts | join(", ") | capitalize }}.
+      {% if progress.actionable > 0 %}
+      {{ progress.decided }} of {{ progress.actionable }} actionable parameter{% if progress.actionable != 1 %}s{% endif %} validated so far.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+
   <!-- Summary bar -->
   <div class="summary-bar">
     <div class="summary-item status-matched">
@@ -60,16 +84,30 @@
 
     {% for param in comparison.params %}
     <a href="/compare/{{ comparison.comparison_id }}/param/{{ param.index }}"
-       class="param-row param-row-{{ param.status }}{% if param.decision %} param-row-decided{% endif %}">
+       class="param-row param-row-{{ param.status }}{% if param.decision %} param-row-decided{% endif %}{% if param.status == 'matched' %} param-row-muted{% endif %}">
 
       <div class="col-left">
         {% if param.policy %}
-          <span class="extraction-class">{{ param.extraction_class }}</span>
-          <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
-          {% if param.policy.attributes %}
-            {% set key_attr = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or "" %}
-            {% if key_attr %}
-            <span class="attr-preview">{{ key_attr }}</span>
+          {% if param.status == 'drifted' %}
+            <span class="extraction-class extraction-class-label">{{ param.extraction_class }}</span>
+            {% if param.policy.attributes %}
+              {% set key_attr = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or "" %}
+              {% if key_attr %}
+              <span class="attr-value-prominent">{{ key_attr }}</span>
+              {% else %}
+              <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
+              {% endif %}
+            {% else %}
+              <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
+            {% endif %}
+          {% else %}
+            <span class="extraction-class">{{ param.extraction_class }}</span>
+            <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
+            {% if param.policy.attributes %}
+              {% set key_attr = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or "" %}
+              {% if key_attr %}
+              <span class="attr-preview">{{ key_attr }}</span>
+              {% endif %}
             {% endif %}
           {% endif %}
         {% else %}
@@ -88,12 +126,26 @@
 
       <div class="col-right">
         {% if param.implementation %}
-          <span class="extraction-class">{{ param.extraction_class }}</span>
-          <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
-          {% if param.implementation.attributes %}
-            {% set key_attr = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or "" %}
-            {% if key_attr %}
-            <span class="attr-preview">{{ key_attr }}</span>
+          {% if param.status == 'drifted' %}
+            <span class="extraction-class extraction-class-label">{{ param.extraction_class }}</span>
+            {% if param.implementation.attributes %}
+              {% set key_attr = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or "" %}
+              {% if key_attr %}
+              <span class="attr-value-prominent">{{ key_attr }}</span>
+              {% else %}
+              <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
+              {% endif %}
+            {% else %}
+              <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
+            {% endif %}
+          {% else %}
+            <span class="extraction-class">{{ param.extraction_class }}</span>
+            <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
+            {% if param.implementation.attributes %}
+              {% set key_attr = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or "" %}
+              {% if key_attr %}
+              <span class="attr-preview">{{ key_attr }}</span>
+              {% endif %}
             {% endif %}
           {% endif %}
         {% else %}
@@ -106,28 +158,48 @@
   </div>
 
   <!-- Visualizations -->
-  <details class="viz-section">
-    <summary>Show source visualizations (langextract)</summary>
-    <div class="viz-frames">
-      <div class="viz-frame-wrap">
-        <h3>Policy: {{ meta.policy_filename }}</h3>
-        <iframe src="/compare/{{ comparison.comparison_id }}/viz/policy"
-                class="viz-frame"
-                title="Policy extraction visualization"></iframe>
-      </div>
-      <div class="viz-frame-wrap">
-        <h3>Implementation: {{ meta.implementation_filename }}</h3>
-        <iframe src="/compare/{{ comparison.comparison_id }}/viz/implementation"
-                class="viz-frame"
-                title="Implementation extraction visualization"></iframe>
-      </div>
+  <div class="viz-section">
+    <div class="viz-tab-bar">
+      <button class="viz-tab viz-tab-active" id="tab-policy" onclick="switchViz('policy')">Policy</button>
+      <button class="viz-tab" id="tab-implementation" onclick="switchViz('implementation')">Implementation</button>
+      <a id="viz-fullpage-link"
+         href="/compare/{{ comparison.comparison_id }}/viz/policy"
+         target="_blank"
+         rel="noopener"
+         class="viz-fullpage-link">Open full page →</a>
     </div>
-  </details>
+    <p class="viz-filename" id="viz-filename">{{ meta.policy_filename }}</p>
+    <iframe id="viz-iframe"
+            src="/compare/{{ comparison.comparison_id }}/viz/policy"
+            class="viz-frame-full"
+            title="Extraction visualization"></iframe>
+  </div>
 
 </main>
 
 <footer>
   <p>Evergreen Ingest &nbsp;·&nbsp; <a href="/compare/{{ comparison.comparison_id }}/report.json">Download JSON</a></p>
 </footer>
+
+<script>
+(function () {
+  var VIZ_URLS = {
+    policy: '/compare/{{ comparison.comparison_id }}/viz/policy',
+    implementation: '/compare/{{ comparison.comparison_id }}/viz/implementation'
+  };
+  var VIZ_NAMES = {
+    policy: '{{ meta.policy_filename | e }}',
+    implementation: '{{ meta.implementation_filename | e }}'
+  };
+
+  window.switchViz = function (which) {
+    document.getElementById('viz-iframe').src = VIZ_URLS[which];
+    document.getElementById('viz-fullpage-link').href = VIZ_URLS[which];
+    document.getElementById('viz-filename').textContent = VIZ_NAMES[which];
+    document.getElementById('tab-policy').classList.toggle('viz-tab-active', which === 'policy');
+    document.getElementById('tab-implementation').classList.toggle('viz-tab-active', which === 'implementation');
+  };
+}());
+</script>
 </body>
 </html>

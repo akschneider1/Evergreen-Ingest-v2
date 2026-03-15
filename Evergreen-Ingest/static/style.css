@@ -653,3 +653,130 @@ details.advanced summary:hover { background: #f3f4f6; color: #374151; }
   color: #374151;
   font-weight: 600;
 }
+
+/* ============================================================
+   Compare page redesign — summary card, tabbed viz, diff table
+   ============================================================ */
+
+/* ---- Drift summary card ---- */
+.drift-summary-card {
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid transparent;
+  border-left-width: 4px;
+}
+.drift-summary-clean {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  border-left-color: var(--color-matched);
+}
+.drift-summary-drifted {
+  background: #fffbeb;
+  border-color: #fde68a;
+  border-left-color: var(--color-drifted);
+}
+.drift-summary-headline {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+.drift-summary-detail {
+  font-size: 0.88rem;
+  color: #4b5563;
+  line-height: 1.55;
+}
+
+/* ---- Matched row de-emphasis ---- */
+.param-row-muted {
+  opacity: 0.6;
+}
+.param-row-muted:hover {
+  opacity: 1;
+}
+
+/* ---- Drifted row prominent value display ---- */
+.extraction-class-label {
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.attr-value-prominent {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #78350f;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+/* ---- Viz section — tabbed, full-width ---- */
+.viz-section {
+  margin-top: 2rem;
+}
+.viz-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+.viz-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: var(--radius) var(--radius) 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.viz-tab:hover {
+  color: #1f2937;
+  background: #f8fafc;
+}
+.viz-tab-active {
+  color: #1f2937;
+  border-bottom-color: #1e293b;
+}
+.viz-fullpage-link {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+.viz-fullpage-link:hover {
+  background: #eef2ff;
+  text-decoration: underline;
+}
+.viz-filename {
+  font-size: 0.82rem;
+  color: #6b7280;
+  margin: 0.4rem 0 0.5rem;
+  font-style: italic;
+}
+.viz-frame-full {
+  width: 100%;
+  height: 700px;
+  border: 1px solid #e5e7eb;
+  border-radius: 0 0 var(--radius) var(--radius);
+  display: block;
+}
+
+/* Responsive override for viz section */
+@media (max-width: 900px) {
+  .viz-frame-full { height: 500px; }
+  .viz-fullpage-link { display: none; }
+}
