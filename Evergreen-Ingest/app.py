@@ -363,6 +363,20 @@ async def compare_view(request: Request, comparison_id: str):
     )
 
 
+_VIZ_SCROLL_JS = """<script>
+(function () {
+  var m = location.hash.match(/[#&]idx=(\d+)/);
+  if (!m) return;
+  var el = document.querySelector('[data-idx="' + m[1] + '"]');
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.outline = '3px solid #f59e0b';
+  el.style.borderRadius = '3px';
+  el.style.backgroundColor = 'rgba(245, 158, 11, 0.2)';
+})();
+</script>"""
+
+
 @app.get("/compare/{comparison_id}/viz/{doc_slot}", response_class=HTMLResponse)
 async def viz(comparison_id: str, doc_slot: str):
     if doc_slot not in ("policy", "implementation"):
@@ -370,7 +384,13 @@ async def viz(comparison_id: str, doc_slot: str):
     viz_path = OUTPUT_DIR / "visualizations" / comparison_id / f"{doc_slot}.html"
     if not viz_path.exists():
         raise HTTPException(status_code=404, detail="Visualization not found")
-    return HTMLResponse(content=viz_path.read_text(encoding="utf-8"))
+    html = viz_path.read_text(encoding="utf-8")
+    # Inject scroll-to-highlight JS so callers can link to #idx=N
+    if "</body>" in html:
+        html = html.replace("</body>", _VIZ_SCROLL_JS + "\n</body>", 1)
+    else:
+        html += _VIZ_SCROLL_JS
+    return HTMLResponse(content=html)
 
 
 @app.get("/compare/{comparison_id}/param/{index}", response_class=HTMLResponse)

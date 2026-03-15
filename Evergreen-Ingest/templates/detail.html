@@ -59,9 +59,15 @@
           {% endfor %}
           </tbody>
         </table>
-        {% if param.policy.char_start is not none %}
-        <p class="char-position">Source position: chars {{ param.policy.char_start }}–{{ param.policy.char_end }}</p>
-        {% endif %}
+        <p class="char-position">
+          {% if param.policy.viz_idx is not none %}
+          <a href="/compare/{{ comparison_id }}/viz/policy#idx={{ param.policy.viz_idx }}"
+             target="_blank" class="viz-link">View in source →</a>
+          {% endif %}
+          {% if param.policy.char_start is not none %}
+          <span class="char-range">chars {{ param.policy.char_start }}–{{ param.policy.char_end }}</span>
+          {% endif %}
+        </p>
       {% else %}
         <div class="absent-notice">Not present in policy</div>
       {% endif %}
@@ -82,9 +88,15 @@
           {% endfor %}
           </tbody>
         </table>
-        {% if param.implementation.char_start is not none %}
-        <p class="char-position">Source position: chars {{ param.implementation.char_start }}–{{ param.implementation.char_end }}</p>
-        {% endif %}
+        <p class="char-position">
+          {% if param.implementation.viz_idx is not none %}
+          <a href="/compare/{{ comparison_id }}/viz/implementation#idx={{ param.implementation.viz_idx }}"
+             target="_blank" class="viz-link">View in source →</a>
+          {% endif %}
+          {% if param.implementation.char_start is not none %}
+          <span class="char-range">chars {{ param.implementation.char_start }}–{{ param.implementation.char_end }}</span>
+          {% endif %}
+        </p>
       {% else %}
         <div class="absent-notice">Not present in implementation</div>
       {% endif %}

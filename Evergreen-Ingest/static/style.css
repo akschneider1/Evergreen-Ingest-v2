@@ -55,6 +55,54 @@ main {
   margin: 2rem auto;
   padding: 0 1.5rem;
 }
+/* ---- Pipeline diagram (Mermaid) ---- */
+.pipeline-note .mermaid {
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+/* ---- Pipeline note ---- */
+.pipeline-note {
+  max-width: 780px;
+  margin: 3rem auto 0;
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.pipeline-note h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 0 0 1rem;
+}
+.pipeline-note ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.pipeline-note li {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #374151;
+  padding-left: 1.25rem;
+  border-left: 3px solid #e0e7ff;
+}
+.pipeline-note li strong { color: #1e293b; }
+.pipeline-note code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  background: #e2e8f0;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  word-break: break-all;
+}
+
 footer {
   text-align: center;
   padding: 2rem;
@@ -287,7 +335,10 @@ details.advanced summary { cursor: pointer; color: #6b7280; font-size: 0.9rem; }
 .attr-table tr:last-child td { border-bottom: none; }
 .drifted-row { background: #fffbeb; }
 .drifted-row td { color: #92400e; font-weight: 600; }
-.char-position { font-size: 0.75rem; color: #9ca3af; margin-top: 0.75rem; font-family: var(--mono); }
+.char-position { font-size: 0.75rem; color: #9ca3af; margin-top: 0.75rem; font-family: var(--mono); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.viz-link { color: #4f46e5; text-decoration: none; font-weight: 600; white-space: nowrap; }
+.viz-link:hover { text-decoration: underline; }
+.char-range { color: #9ca3af; }
 .absent-notice {
   background: #f9fafb;
   border: 1px dashed #d1d5db;

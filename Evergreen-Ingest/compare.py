@@ -62,12 +62,13 @@ def _values_equal(attrs_a: dict, attrs_b: dict) -> tuple[bool, list[str]]:
     return len(drifted) == 0 and len(shared_keys) > 0, drifted
 
 
-def _extraction_to_dict(ext) -> dict:
+def _extraction_to_dict(ext, viz_idx: int | None = None) -> dict:
     """Convert a langextract Extraction object to a plain dict."""
     attrs = ext.attributes or {}
     result = {
         "extraction_text": ext.extraction_text or "",
         "attributes": dict(attrs) if attrs else {},
+        "viz_idx": viz_idx,
     }
     if hasattr(ext, "char_interval") and ext.char_interval is not None:
         result["char_start"] = getattr(ext.char_interval, "start_pos", None)
@@ -92,6 +93,11 @@ def _match_extractions(
       4. Determine matched vs drifted based on value equality.
       5. Unmatched policy → missing; unmatched impl → extra.
     """
+    # Record each extraction's position in the original list before grouping.
+    # This index matches the data-idx attribute in langextract's viz HTML.
+    policy_viz: dict[int, int] = {id(ext): i for i, ext in enumerate(policy_exts)}
+    impl_viz: dict[int, int] = {id(ext): i for i, ext in enumerate(impl_exts)}
+
     # Group by class
     policy_by_class: dict[str, list] = {}
     impl_by_class: dict[str, list] = {}
@@ -117,7 +123,7 @@ def _match_extractions(
                 params.append({
                     "extraction_class": cls,
                     "status": "missing",
-                    "policy": _extraction_to_dict(ext),
+                    "policy": _extraction_to_dict(ext, policy_viz.get(id(ext))),
                     "implementation": None,
                     "drift_reason": None,
                     "drifted_attributes": [],
@@ -131,7 +137,7 @@ def _match_extractions(
                     "extraction_class": cls,
                     "status": "extra",
                     "policy": None,
-                    "implementation": _extraction_to_dict(ext),
+                    "implementation": _extraction_to_dict(ext, impl_viz.get(id(ext))),
                     "drift_reason": None,
                     "drifted_attributes": [],
                 })
@@ -166,8 +172,8 @@ def _match_extractions(
         for pi, ii, sim in matched_pairs:
             p_ext = policy_group[pi]
             i_ext = impl_group[ii]
-            p_dict = _extraction_to_dict(p_ext)
-            i_dict = _extraction_to_dict(i_ext)
+            p_dict = _extraction_to_dict(p_ext, policy_viz.get(id(p_ext)))
+            i_dict = _extraction_to_dict(i_ext, impl_viz.get(id(i_ext)))
             p_attrs = p_dict["attributes"]
             i_attrs = i_dict["attributes"]
 
@@ -200,7 +206,7 @@ def _match_extractions(
                 params.append({
                     "extraction_class": cls,
                     "status": "missing",
-                    "policy": _extraction_to_dict(p_ext),
+                    "policy": _extraction_to_dict(p_ext, policy_viz.get(id(p_ext))),
                     "implementation": None,
                     "drift_reason": None,
                     "drifted_attributes": [],
@@ -213,7 +219,7 @@ def _match_extractions(
                     "extraction_class": cls,
                     "status": "extra",
                     "policy": None,
-                    "implementation": _extraction_to_dict(i_ext),
+                    "implementation": _extraction_to_dict(i_ext, impl_viz.get(id(i_ext))),
                     "drift_reason": None,
                     "drifted_attributes": [],
                 })

@@ -118,10 +118,54 @@
   </form>
 </main>
 
+<section class="pipeline-note">
+  <h2>Where this fits</h2>
+
+  <div class="mermaid">
+flowchart LR
+    docs[📄 Raw docs] --> ingest[Evergreen Ingest]
+    ingest --> embed[Chunk & embed]
+    embed --> llm[💬 RAG / LLM]
+    ingest -.->|generates| evals[Evergreen Evals]
+    llm -.->|monitored by| optimize[Evergreen Optimize]
+    evals -.->|re-audit trigger| ingest
+    optimize -.->|gap discovery| evals
+    optimize -.->|re-audit trigger| ingest
+
+    style ingest fill:#eef2ff,stroke:#6366f1,stroke-width:2px,color:#4338ca
+    style evals fill:#f9fafb,stroke:#d1d5db,color:#6b7280
+    style optimize fill:#f9fafb,stroke:#d1d5db,color:#6b7280
+  </div>
+
+  <ul>
+    <li>
+      <strong>Clean before you index.</strong>
+      The drift report shows exactly which content is stale. Remove or correct those passages in
+      your source documents before chunking and embedding — a semantically similar query will
+      surface the wrong value just as confidently as the right one. Before embedding each confirmed
+      chunk, prepend its validated attributes as plain text
+      (e.g. <code>Parameter: filing threshold | Value: $14,600 | Source: policy</code>) to give the
+      embedding model more signal, then store those fields as metadata for filtered retrieval at query time.
+    </li>
+    <li>
+      <strong>Turn drift findings into Evergreen Evals tests.</strong>
+      Every drifted or missing parameter gives you a known-correct value (policy), a known-wrong
+      value (stale implementation), and source text for both — enough for a concrete hallucination
+      test. Index both versions, ask the question, assert the model answers with the policy value.
+      SME-confirmed decisions become labelled ground truth. Run the suite after any KB update to
+      catch regressions before they reach users.
+    </li>
+  </ul>
+</section>
+
 <footer>
   <p>Evergreen Ingest · Proof of concept · Source grounding powered by
   <a href="https://github.com/google-deepmind/langextract" target="_blank">langextract</a></p>
 </footer>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
 <script>
 function toggleRequired(fileInputId, demoValue) {
   const fileInput = document.getElementById(fileInputId);
