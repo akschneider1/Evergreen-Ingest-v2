@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(cd:*)",
+      "Read(//usr/bin/**)",
+      "Read(//nix/store/**)",
+      "Bash(nix-shell:*)",
+      "Bash(pip3 install:*)",
+      "Bash(sleep:*)",
+      "Read(//home/runner/.local/bin/**)",
+      "Read(//home/runner/.local/lib/**)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(fuser:*)"
+    ]
+  }
+}

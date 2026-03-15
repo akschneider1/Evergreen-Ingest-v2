@@ -1,5 +1,14 @@
+modules = ["nodejs-20", "python-3.11"]
+
 [agent]
 expertMode = true
 
 [nix]
 channel = "stable-25_05"
+
+[run]
+command = "cd Evergreen-Ingest && pip install -r requirements.txt -q && python app.py"
+
+[[ports]]
+localPort = 8000
+externalPort = 80

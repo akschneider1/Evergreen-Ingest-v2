@@ -1,0 +1,9 @@
+model_id: gemini-2.5-flash
+extraction_passes: 3
+max_workers: 4
+domains:
+  - tax
+  - benefits
+output_dir: output
+sources_dir: sources
+upload_max_bytes: 5242880  # 5 MB

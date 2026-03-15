@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="4">
+<title>Processing… — Evergreen Ingest</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+  </div>
+</header>
+
+<main class="status-page">
+  <div class="status-card">
+    <h1>Processing your documents…</h1>
+    <p class="status-description">
+      {% if meta.status == "pending" %}
+        Queued for extraction.
+      {% elif meta.status == "extracting" %}
+        Running structured extraction on both documents. This may take 30–90 seconds
+        depending on document length.
+      {% elif meta.status == "comparing" %}
+        Extraction complete. Comparing parameters…
+      {% elif meta.status == "error" %}
+        An error occurred during processing.
+      {% else %}
+        Working…
+      {% endif %}
+    </p>
+
+    {% if meta.status == "error" %}
+    <div class="error-box">
+      <strong>Error:</strong> {{ meta.error }}
+    </div>
+    <p><a href="/">← Start over</a></p>
+    {% else %}
+    <div class="progress-spinner" aria-label="Processing"></div>
+
+    <dl class="meta-list">
+      <dt>Policy</dt><dd>{{ meta.policy_filename }}</dd>
+      <dt>Implementation</dt><dd>{{ meta.implementation_filename }}</dd>
+      <dt>Domain</dt><dd>{{ meta.domain | title }}</dd>
+      <dt>Status</dt><dd>{{ meta.status }}</dd>
+    </dl>
+
+    <p class="refresh-note">This page refreshes automatically every 4 seconds.</p>
+    {% endif %}
+  </div>
+</main>
+
+<footer>
+  <p>Evergreen Ingest</p>
+</footer>
+</body>
+</html>

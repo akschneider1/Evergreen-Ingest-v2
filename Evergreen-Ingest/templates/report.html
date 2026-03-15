@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drift Report — Evergreen Ingest</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="no-print">
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+    <nav class="header-nav">
+      <a href="/compare/{{ comparison.comparison_id }}">← Back to Compare</a>
+    </nav>
+  </div>
+</header>
+
+<main class="report-page">
+  <h1>Drift Report</h1>
+
+  <div class="report-meta">
+    <dl class="meta-list">
+      <dt>Policy</dt><dd>{{ meta.policy_filename }}</dd>
+      <dt>Implementation</dt><dd>{{ meta.implementation_filename }}</dd>
+      <dt>Domain</dt><dd>{{ meta.domain | title }}</dd>
+      <dt>Generated</dt><dd>{{ comparison.generated_at }}</dd>
+    </dl>
+  </div>
+
+  <!-- Summary statistics -->
+  <section class="report-section">
+    <h2>Summary</h2>
+    <table class="report-summary-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Count</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="status-matched">
+          <td><span class="status-badge status-matched">Matched</span></td>
+          <td>{{ comparison.summary.matched }}</td>
+          <td>Same parameter, same value in both documents</td>
+        </tr>
+        <tr class="status-drifted">
+          <td><span class="status-badge status-drifted">Drifted</span></td>
+          <td>{{ comparison.summary.drifted }}</td>
+          <td>Same parameter, different values — implementation may be outdated</td>
+        </tr>
+        <tr class="status-missing">
+          <td><span class="status-badge status-missing">Missing</span></td>
+          <td>{{ comparison.summary.missing }}</td>
+          <td>Parameter in policy but absent from implementation</td>
+        </tr>
+        <tr class="status-extra">
+          <td><span class="status-badge status-extra">Extra</span></td>
+          <td>{{ comparison.summary.extra }}</td>
+          <td>Parameter in implementation but not in current policy</td>
+        </tr>
+        <tr class="total-row">
+          <td><strong>Total</strong></td>
+          <td>{{ comparison.summary.total }}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Validation progress -->
+  <section class="report-section">
+    <h2>Validation Progress</h2>
+    <p>
+      {{ progress.decided }} of {{ progress.actionable }} actionable findings validated
+      ({{ progress.percent }}%).
+    </p>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+    </div>
+  </section>
+
+  <!-- Actionable findings -->
+  <section class="report-section">
+    <h2>Findings Requiring Attention</h2>
+    {% if actionable_params %}
+    <table class="findings-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Policy text</th>
+          <th>Implementation text</th>
+          <th>Decision</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for param in actionable_params %}
+      <tr class="finding-row status-{{ param.status }}">
+        <td>
+          <a href="/compare/{{ comparison.comparison_id }}/param/{{ param.index }}" class="no-print">
+            {{ param.index + 1 }}
+          </a>
+          <span class="print-only">{{ param.index + 1 }}</span>
+        </td>
+        <td><code>{{ param.extraction_class }}</code></td>
+        <td><span class="status-badge status-{{ param.status }}">{{ param.status }}</span></td>
+        <td class="text-cell">
+          {% if param.policy %}{{ param.policy.extraction_text | truncate(100) }}{% else %}<em>—</em>{% endif %}
+        </td>
+        <td class="text-cell">
+          {% if param.implementation %}{{ param.implementation.extraction_text | truncate(100) }}{% else %}<em>—</em>{% endif %}
+        </td>
+        <td>
+          {% if param.decision %}
+            <span class="decision-badge decision-{{ param.decision.decision }}">{{ param.decision.decision }}</span>
+            {% if param.decision.note %}<br><small>{{ param.decision.note | truncate(60) }}</small>{% endif %}
+          {% else %}
+            <span class="pending-badge">pending</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No actionable findings — all parameters matched.</p>
+    {% endif %}
+  </section>
+
+  <div class="report-actions no-print">
+    <a href="/compare/{{ comparison.comparison_id }}/report.json" class="btn-secondary">
+      Download JSON
+    </a>
+    <button onclick="window.print()" class="btn-secondary">Print</button>
+  </div>
+</main>
+
+<footer class="no-print">
+  <p>Evergreen Ingest &nbsp;·&nbsp; Every finding grounded to exact source text.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compare — {{ meta.policy_filename }} vs {{ meta.implementation_filename }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+    <nav class="header-nav">
+      <a href="/compare/{{ comparison.comparison_id }}/report">Report →</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="compare-meta">
+    <h1>Drift Comparison</h1>
+    <p class="doc-names">
+      <strong>Policy:</strong> {{ meta.policy_filename }} &nbsp;·&nbsp;
+      <strong>Implementation:</strong> {{ meta.implementation_filename }} &nbsp;·&nbsp;
+      <strong>Domain:</strong> {{ meta.domain | title }}
+    </p>
+  </div>
+
+  <!-- Summary bar -->
+  <div class="summary-bar">
+    <div class="summary-item status-matched">
+      <span class="summary-count">{{ comparison.summary.matched }}</span>
+      <span class="summary-label">Matched</span>
+    </div>
+    <div class="summary-item status-drifted">
+      <span class="summary-count">{{ comparison.summary.drifted }}</span>
+      <span class="summary-label">Drifted</span>
+    </div>
+    <div class="summary-item status-missing">
+      <span class="summary-count">{{ comparison.summary.missing }}</span>
+      <span class="summary-label">Missing</span>
+    </div>
+    <div class="summary-item status-extra">
+      <span class="summary-count">{{ comparison.summary.extra }}</span>
+      <span class="summary-label">Extra</span>
+    </div>
+    <div class="summary-item progress-item">
+      <span class="summary-count">{{ progress.decided }}/{{ progress.actionable }}</span>
+      <span class="summary-label">Validated</span>
+    </div>
+  </div>
+
+  <!-- Parameter table -->
+  <div class="param-table">
+    <div class="param-table-header">
+      <div class="col-left">Policy</div>
+      <div class="col-center">Status</div>
+      <div class="col-right">Implementation</div>
+    </div>
+
+    {% for param in comparison.params %}
+    <a href="/compare/{{ comparison.comparison_id }}/param/{{ param.index }}"
+       class="param-row param-row-{{ param.status }}{% if param.decision %} param-row-decided{% endif %}">
+
+      <div class="col-left">
+        {% if param.policy %}
+          <span class="extraction-class">{{ param.extraction_class }}</span>
+          <span class="extraction-text">{{ param.policy.extraction_text | truncate(120) }}</span>
+          {% if param.policy.attributes %}
+            {% set key_attr = param.policy.attributes.get("parameter") or param.policy.attributes.get("value") or "" %}
+            {% if key_attr %}
+            <span class="attr-preview">{{ key_attr }}</span>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          <span class="empty-side">—</span>
+        {% endif %}
+      </div>
+
+      <div class="col-center">
+        <span class="status-badge status-{{ param.status }}">{{ param.status }}</span>
+        {% if param.decision %}
+          <span class="decision-badge decision-{{ param.decision.decision }}">
+            {{ param.decision.decision }}
+          </span>
+        {% endif %}
+      </div>
+
+      <div class="col-right">
+        {% if param.implementation %}
+          <span class="extraction-class">{{ param.extraction_class }}</span>
+          <span class="extraction-text">{{ param.implementation.extraction_text | truncate(120) }}</span>
+          {% if param.implementation.attributes %}
+            {% set key_attr = param.implementation.attributes.get("parameter") or param.implementation.attributes.get("value") or "" %}
+            {% if key_attr %}
+            <span class="attr-preview">{{ key_attr }}</span>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          <span class="empty-side">—</span>
+        {% endif %}
+      </div>
+
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Visualizations -->
+  <details class="viz-section">
+    <summary>Show source visualizations (langextract)</summary>
+    <div class="viz-frames">
+      <div class="viz-frame-wrap">
+        <h3>Policy: {{ meta.policy_filename }}</h3>
+        <iframe src="/compare/{{ comparison.comparison_id }}/viz/policy"
+                class="viz-frame"
+                title="Policy extraction visualization"></iframe>
+      </div>
+      <div class="viz-frame-wrap">
+        <h3>Implementation: {{ meta.implementation_filename }}</h3>
+        <iframe src="/compare/{{ comparison.comparison_id }}/viz/implementation"
+                class="viz-frame"
+                title="Implementation extraction visualization"></iframe>
+      </div>
+    </div>
+  </details>
+
+</main>
+
+<footer>
+  <p>Evergreen Ingest &nbsp;·&nbsp; <a href="/compare/{{ comparison.comparison_id }}/report.json">Download JSON</a></p>
+</footer>
+</body>
+</html>

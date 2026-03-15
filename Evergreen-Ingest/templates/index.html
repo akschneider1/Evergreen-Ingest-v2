@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evergreen Ingest — Policy Drift Detector</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <span class="logo">Evergreen Ingest</span>
+    <span class="tagline">Upload your policy and implementation artifact — see what's different.</span>
+  </div>
+</header>
+
+<main class="upload-page">
+  <h1>Detect Policy Drift</h1>
+  <p class="lead">Upload two documents: the authoritative policy and an implementation artifact
+  (training manual, agent script, FAQ, knowledge base). The tool extracts structured parameters
+  from both and shows what's matched, drifted, missing, or extra.</p>
+
+  <form method="POST" action="/upload" enctype="multipart/form-data" class="upload-form">
+
+    <div class="form-row two-col">
+      <div class="form-group">
+        <label for="policy_file">
+          <strong>Source Policy</strong>
+          <span class="label-hint">The authority — what should be true</span>
+        </label>
+        <input type="file"
+               id="policy_file"
+               name="policy_file"
+               accept=".md,.txt,.html,.htm,.pdf,.docx"
+               required>
+        <span class="file-hint">PDF, DOCX, HTML, Markdown, or plain text · max 5 MB</span>
+      </div>
+
+      <div class="form-group">
+        <label for="implementation_file">
+          <strong>Implementation Artifact</strong>
+          <span class="label-hint">What's actually in use — training manual, FAQ, script</span>
+        </label>
+        <input type="file"
+               id="implementation_file"
+               name="implementation_file"
+               accept=".md,.txt,.html,.htm,.pdf,.docx"
+               required>
+        <span class="file-hint">PDF, DOCX, HTML, Markdown, or plain text · max 5 MB</span>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="domain">
+          <strong>Parameter Domain</strong>
+          <span class="label-hint">Loads preset extraction schema for this domain</span>
+        </label>
+        <select name="domain" id="domain">
+          {% for d in domains %}
+          <option value="{{ d }}">{{ d | title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <details class="advanced">
+      <summary>Custom extraction prompt (optional)</summary>
+      <div class="form-group">
+        <label for="custom_prompt">
+          Describe what parameters to look for, in plain language.
+          Leave blank to use the domain preset.
+        </label>
+        <textarea name="custom_prompt"
+                  id="custom_prompt"
+                  rows="4"
+                  placeholder="e.g. Check for income thresholds, filing deadlines, penalty amounts, credit eligibility."></textarea>
+      </div>
+    </details>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Extract &amp; Compare</button>
+    </div>
+
+  </form>
+</main>
+
+<footer>
+  <p>Evergreen Ingest · Proof of concept · Source grounding powered by
+  <a href="https://github.com/google-deepmind/langextract" target="_blank">langextract</a></p>
+</footer>
+</body>
+</html>
