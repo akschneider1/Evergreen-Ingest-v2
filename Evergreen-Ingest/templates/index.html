@@ -67,6 +67,7 @@
           <option value="{{ d }}">{{ d | title }}</option>
           {% endfor %}
         </select>
+        <div id="schema-preview" class="schema-preview" aria-live="polite"></div>
       </div>
 
       <div class="form-group">
@@ -305,6 +306,34 @@ document.querySelectorAll('.demo-chip').forEach(function(btn) {
     }
   });
 });
+
+// Schema preview
+var SCHEMA_PREVIEWS = {
+  tax: {
+    types: ['tax_rate', 'filing_threshold', 'penalty_rule'],
+    example: '"flat income tax rate of 4.4% on Colorado taxable income for tax year 2026"'
+  },
+  benefits: {
+    types: ['benefit_amount', 'work_search_requirement', 'enrollment_period'],
+    example: '"Maximum WBA is $781 per week effective January 1, 2026"'
+  }
+};
+
+function updateSchemaPreview() {
+  var domain = document.getElementById('domain').value;
+  var el = document.getElementById('schema-preview');
+  var schema = SCHEMA_PREVIEWS[domain];
+  if (!schema) { el.innerHTML = ''; return; }
+  var tags = schema.types.map(function(t) {
+    return '<span class="schema-type-tag">' + t + '</span>';
+  }).join('');
+  el.innerHTML =
+    '<span class="schema-preview-label">Extracts</span>' + tags +
+    '<span class="schema-example">e.g. ' + schema.example + '</span>';
+}
+
+document.getElementById('domain').addEventListener('change', updateSchemaPreview);
+updateSchemaPreview();
 
 // Extraction passes plural
 document.getElementById('extraction_passes').addEventListener('input', function() {
