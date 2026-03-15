@@ -131,55 +131,65 @@
   <h2>Where this fits</h2>
 
   <div class="mermaid">
-flowchart LR
-    subgraph app ["🖥️ Application layer"]
-        llm["💬 RAG / LLM"]
-        user["👤 User"]
-    end
-    subgraph infra ["🏗️ Infrastructure layer"]
-        docs["📄 Raw docs"]
-        ingest["Evergreen Ingest"]
-        embed["Chunk & embed"]
-        evals["Evergreen Evals"]
-        optimize["Evergreen Optimize"]
+flowchart TB
+    user["👤 Citizen / Staff\nasking questions"]
+
+    subgraph ai ["💬 AI Assistant layer"]
+        llm["AI Assistant\nanswers questions from the Knowledge Base"]
     end
 
-    docs --> ingest
-    ingest --> embed
+    subgraph kb ["📚 Knowledge Base layer"]
+        embed["Verified Policy Content\nstored &amp; searchable"]
+    end
+
+    subgraph ingest_layer ["🔍 Drift Detection layer"]
+        ingest["Evergreen Ingest\ncompares policy ↔ implementation\nflags what's out of sync"]
+        evals["Evergreen Evals\nautomated answer checks"]
+        optimize["Evergreen Optimize\nmonitors live AI behavior"]
+    end
+
+    subgraph docs_layer ["📄 Source Documents"]
+        policy["Source Policy\n(the authority)"]
+        artifact["Implementation Artifact\n(training manual, FAQ, script)"]
+    end
+
+    policy --> ingest
+    artifact --> ingest
+    ingest -->|verified, corrected content| embed
     embed --> llm
     llm --> user
+    ingest -.->|generates answer checks| evals
+    evals -.->|flags gaps → triggers re-audit| ingest
     llm -.->|monitored by| optimize
-    ingest -.->|generates| evals
-    evals -.->|re-audit trigger| ingest
-    optimize -.->|gap discovery| evals
-    optimize -.->|re-audit trigger| ingest
+    optimize -.->|unresolved gaps → triggers re-audit| ingest
 
-    style ingest fill:#eef2ff,stroke:#6366f1,stroke-width:2px,color:#4338ca
+    style ingest fill:#eef2ff,stroke:#6366f1,stroke-width:3px,color:#3730a3,font-weight:bold
     style evals fill:#f0fdf4,stroke:#4ade80,stroke-width:2px,color:#166534
     style optimize fill:#f0fdf4,stroke:#4ade80,stroke-width:2px,color:#166534
     style llm fill:#fefce8,stroke:#facc15,stroke-width:1px,color:#713f12
     style user fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
+    style embed fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
+    style policy fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
+    style artifact fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
   </div>
 </section>
 
 <section class="pipeline-bullets">
   <ul>
     <li>
-      <strong>Clean before you index.</strong>
-      The drift report shows exactly which content is stale. Remove or correct those passages in
-      your source documents before chunking and embedding — a semantically similar query will
-      surface the wrong value just as confidently as the right one. Before embedding each confirmed
-      chunk, prepend its validated attributes as plain text
-      (e.g. <code>Parameter: filing threshold | Value: $14,600 | Source: policy</code>) to give the
-      embedding model more signal, then store those fields as metadata for filtered retrieval at query time.
+      <strong>Fix drift before it reaches the AI Assistant.</strong>
+      The drift report shows exactly which content is stale or out of sync. Correct those passages
+      in your source documents before they are added to the Knowledge Base — an AI Assistant will
+      surface an outdated value just as confidently as the correct one. Verified parameters are
+      stored alongside the policy text so the AI can answer with precision and cite its source.
     </li>
     <li>
-      <strong>Turn drift findings into Evergreen Evals tests.</strong>
-      Every drifted or missing parameter gives you a known-correct value (policy), a known-wrong
-      value (stale implementation), and source text for both — enough for a concrete hallucination
-      test. Index both versions, ask the question, assert the model answers with the policy value.
-      SME-confirmed decisions become labelled ground truth. Run the suite after any KB update to
-      catch regressions before they reach users.
+      <strong>Turn drift findings into automated answer checks.</strong>
+      Every drifted or missing parameter gives you a known-correct value (from the policy) and a
+      known-wrong value (from the stale implementation) — enough to build a concrete test. Evergreen
+      Evals uses those findings to check that the AI Assistant answers with the policy value, not
+      the outdated one. Run the checks after any Knowledge Base update to catch problems before
+      they reach staff or citizens.
     </li>
   </ul>
 </section>
