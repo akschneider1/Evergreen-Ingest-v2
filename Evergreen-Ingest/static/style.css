@@ -304,6 +304,8 @@ details.advanced summary:hover { background: #f3f4f6; color: #374151; }
 .decision-badge.decision-edited    { background: #fef9c3; color: #854d0e; }
 .decision-badge.decision-rejected  { background: #fee2e2; color: #991b1b; }
 .pending-badge { font-size: 0.78rem; color: var(--color-pending); }
+.report-corrected-val { color: #854d0e; font-family: var(--mono); font-size: 0.75rem; }
+.report-note { color: #6b7280; font-size: 0.75rem; }
 
 /* ---- Compare page ---- */
 .compare-meta { margin-bottom: 1.25rem; }
@@ -1510,35 +1512,37 @@ kbd {
 
 /* ---- Chapter nav ---- */
 .chapter-nav {
-  display: flex;
-  align-items: center;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: #263447;
+  border-bottom: 1px solid #1e293b;
   padding: 0 1.5rem;
   overflow-x: auto;
   white-space: nowrap;
 }
+.chapter-nav-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+}
 .chapter-step {
-  padding: 0.65rem 0.85rem;
-  font-size: 0.82rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: #d1d5db;
+  color: #475569;
   text-decoration: none;
   border-bottom: 2px solid transparent;
   display: inline-block;
+  transition: color 0.1s;
 }
-a.chapter-step.chapter-done {
-  color: #6b7280;
-  cursor: pointer;
-}
-a.chapter-step.chapter-done:hover { color: #1f2937; }
+a.chapter-step { color: #94a3b8; cursor: pointer; }
+a.chapter-step:hover { color: #e2e8f0; }
 .chapter-step.chapter-active {
-  color: #6366f1;
-  border-bottom-color: #6366f1;
+  color: white;
+  border-bottom-color: #818cf8;
   font-weight: 600;
 }
 .chapter-sep {
-  color: #e5e7eb;
+  color: #334155;
   font-size: 0.85rem;
   padding: 0 0.1rem;
   user-select: none;

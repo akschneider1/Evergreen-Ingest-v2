@@ -20,17 +20,19 @@
 </header>
 
 <nav class="chapter-nav">
-  <a href="/" class="chapter-step chapter-done">Ingest</a>
-  <span class="chapter-sep">›</span>
-  <span class="chapter-step chapter-done">Extract</span>
-  <span class="chapter-sep">›</span>
-  <a href="/compare/{{ comparison_id }}" class="chapter-step chapter-done">Review</a>
-  <span class="chapter-sep">›</span>
-  <span class="chapter-step chapter-active">Validate</span>
-  <span class="chapter-sep">›</span>
-  <a href="/compare/{{ comparison_id }}/report" class="chapter-step chapter-done">Report</a>
-  <span class="chapter-sep">›</span>
-  <a href="/compare/{{ comparison_id }}/deploy" class="chapter-step chapter-future">Deploy</a>
+  <div class="chapter-nav-inner">
+    <a href="/" class="chapter-step chapter-done">Ingest</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-done">Extract</span>
+    <span class="chapter-sep">›</span>
+    <a href="/compare/{{ comparison_id }}" class="chapter-step chapter-done">Review</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-active">Validate</span>
+    <span class="chapter-sep">›</span>
+    <a href="/compare/{{ comparison_id }}/report" class="chapter-step chapter-done">Report</a>
+    <span class="chapter-sep">›</span>
+    <a href="/compare/{{ comparison_id }}/deploy" class="chapter-step chapter-done">Deploy</a>
+  </div>
 </nav>
 
 <main class="detail-page">

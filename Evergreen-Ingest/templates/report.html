@@ -18,17 +18,19 @@
 </header>
 
 <nav class="chapter-nav no-print">
-  <a href="/" class="chapter-step chapter-done">Ingest</a>
-  <span class="chapter-sep">›</span>
-  <span class="chapter-step chapter-done">Extract</span>
-  <span class="chapter-sep">›</span>
-  <a href="/compare/{{ comparison.comparison_id }}" class="chapter-step chapter-done">Review</a>
-  <span class="chapter-sep">›</span>
-  <span class="chapter-step chapter-done">Validate</span>
-  <span class="chapter-sep">›</span>
-  <span class="chapter-step chapter-active">Report</span>
-  <span class="chapter-sep">›</span>
-  <a href="/compare/{{ comparison.comparison_id }}/deploy" class="chapter-step chapter-future">Deploy</a>
+  <div class="chapter-nav-inner">
+    <a href="/" class="chapter-step chapter-done">Ingest</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-done">Extract</span>
+    <span class="chapter-sep">›</span>
+    <a href="/compare/{{ comparison.comparison_id }}" class="chapter-step chapter-done">Review</a>
+    <span class="chapter-sep">›</span>
+    <a href="/compare/{{ comparison.comparison_id }}" class="chapter-step chapter-done">Validate</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-active">Report</span>
+    <span class="chapter-sep">›</span>
+    <a href="/compare/{{ comparison.comparison_id }}/deploy" class="chapter-step chapter-done">Deploy</a>
+  </div>
 </nav>
 
 <main class="report-page">
@@ -138,7 +140,10 @@
         <td>
           {% if param.decision %}
             <span class="decision-badge decision-{{ param.decision.decision }}">{{ param.decision.decision }}</span>
-            {% if param.decision.note %}<br><small>{{ param.decision.note | truncate(60) }}</small>{% endif %}
+            {% if param.decision.decision == 'edited' and param.decision.edited_value %}
+              <br><small class="report-corrected-val">&#x2192; {{ param.decision.edited_value | tojson }}</small>
+            {% endif %}
+            {% if param.decision.note %}<br><small class="report-note">{{ param.decision.note | truncate(60) }}</small>{% endif %}
           {% else %}
             <span class="pending-badge">pending</span>
           {% endif %}
