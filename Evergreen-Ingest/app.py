@@ -647,6 +647,71 @@ async def report_csv(comparison_id: str):
     )
 
 
+@app.get("/compare/{comparison_id}/report.jsonl")
+async def report_jsonl(comparison_id: str):
+    """
+    Canonical per-parameter export for downstream consumers:
+    vector stores, Langfuse datasets, Evergreen Evals, fine-tuning pipelines.
+
+    One JSON object per line. Schema is stable across platform integrations:
+      - Vector store: embed policy_text; all other fields as metadata/payload
+      - Langfuse dataset: policy_text → input, attributes.value → expected_output, rest → metadata
+      - Evergreen Evals: extraction_class + attributes → question, policy value → expected answer
+      - Audit / CSV: flatten as needed
+    """
+    meta = _read_meta(comparison_id)
+    comparison = compare_module.load_comparison(comparison_id, OUTPUT_DIR)
+    state = validate_module.load_state(comparison_id, OUTPUT_DIR)
+
+    lines = []
+    for p in comparison["params"]:
+        dec = validate_module.get_decision(state, p["index"])
+        policy = p.get("policy") or {}
+        impl = p.get("implementation") or {}
+
+        record = {
+            "id": f"{comparison_id}:{p['index']}",
+            "domain": meta.get("domain", ""),
+            "extraction_class": p["extraction_class"],
+            "attributes": policy.get("attributes") or impl.get("attributes") or {},
+            # Policy side — the authority
+            "policy_text": policy.get("extraction_text", ""),
+            "policy_chars": (
+                [policy["char_start"], policy["char_end"]]
+                if policy.get("char_start") is not None else None
+            ),
+            "policy_document": meta.get("policy_filename", ""),
+            # Implementation side — what is in use
+            "impl_text": impl.get("extraction_text", "") if impl else None,
+            "impl_chars": (
+                [impl["char_start"], impl["char_end"]]
+                if impl and impl.get("char_start") is not None else None
+            ),
+            "impl_document": meta.get("implementation_filename", "") if impl else None,
+            # Comparison
+            "status": p["status"],
+            "drifted_keys": p.get("drifted_attributes") or [],
+            # Expert validation
+            "decision": dec["decision"] if dec else None,
+            "corrected_value": dec.get("edited_value") if dec else None,
+            "note": dec.get("note") if dec else None,
+            "decided_at": dec.get("decided_at") if dec else None,
+            # Lineage
+            "comparison_id": comparison_id,
+            "model": meta.get("model", ""),
+            "created_at": meta.get("created_at", ""),
+        }
+        lines.append(json.dumps(record, ensure_ascii=False))
+
+    from fastapi.responses import Response
+    filename = f"evergreen-{comparison_id}.jsonl"
+    return Response(
+        content="\n".join(lines) + "\n",
+        media_type="application/x-ndjson",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.get("/compare/{comparison_id}/report.json")
 async def report_json(comparison_id: str):
     comparison = compare_module.load_comparison(comparison_id, OUTPUT_DIR)

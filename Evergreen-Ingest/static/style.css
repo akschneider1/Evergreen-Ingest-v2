@@ -247,6 +247,7 @@ details.advanced summary:hover { background: #f3f4f6; color: #374151; }
 }
 .btn-secondary:hover { background: #f3f4f6; }
 .btn-secondary.disabled { color: #d1d5db; cursor: default; pointer-events: none; }
+.btn-hint { font-size: 0.75rem; color: #9ca3af; display: block; }
 
 /* ---- Status page ---- */
 .status-page { display: flex; justify-content: center; padding-top: 3rem; }

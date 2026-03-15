@@ -243,19 +243,28 @@
 <section class="pipeline-bullets">
   <ul>
     <li>
-      <strong>Fix drift before it reaches the AI Assistant.</strong>
-      The drift report shows exactly which content is stale or out of sync. Correct those passages
-      in your source documents before they are added to the Knowledge Base — an AI Assistant will
-      surface an outdated value just as confidently as the correct one. Verified parameters are
-      stored alongside the policy text so the AI can answer with precision and cite its source.
+      <strong>One review pass. Two production-ready outputs.</strong>
+      When a policy SME validates findings in Ingest, they produce two artifacts at once:
+      a <em>golden dataset</em> of confirmed parameters for evaluation and monitoring, and
+      <em>source-grounded chunks</em> — policy passages carrying their exact character positions
+      and validation status — ready to embed and index into a vector store for RAG.
+      The expert reviews once; both outputs are generated from the same session.
     </li>
     <li>
-      <strong>Turn drift findings into automated answer checks.</strong>
-      Every drifted or missing parameter gives you a known-correct value (from the policy) and a
-      known-wrong value (from the stale implementation) — enough to build a concrete test. Evergreen
-      Evals uses those findings to check that the AI Assistant answers with the policy value, not
-      the outdated one. Run the checks after any Knowledge Base update to catch problems before
-      they reach staff or citizens.
+      <strong>Ground truth for your AI evaluation pipeline.</strong>
+      Each confirmed parameter is a ready-made test case: a known-correct value from the policy,
+      a known-wrong value from the stale implementation, and the source sentence that proves it.
+      Export to <a href="https://github.com/akschneider1/Evergreen-Evals" target="_blank">Evergreen Evals</a>
+      or push to a Langfuse dataset. Every eval failure traces back to the exact policy text
+      that defines the correct answer.
+    </li>
+    <li>
+      <strong>Policy-grounded retrieval for the knowledge base.</strong>
+      Validated parameters embed with their full lineage — domain, extraction class, character
+      positions, and decision status — as vector metadata. Filter retrievals to
+      <code>decision == confirmed</code> to serve only SME-verified content.
+      Expand the context window at retrieval time using character positions to give the LLM
+      the surrounding policy passage, not just the extracted sentence.
     </li>
   </ul>
 </section>

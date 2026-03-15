@@ -158,11 +158,14 @@
   {% endif %}
 
   <div class="report-actions no-print">
-    <a href="/compare/{{ comparison.comparison_id }}/report.json" class="btn-secondary">
-      Download JSON
+    <a href="/compare/{{ comparison.comparison_id }}/report.jsonl" class="btn-secondary">
+      Download JSONL <span class="btn-hint">vector store / evals</span>
     </a>
     <a href="/compare/{{ comparison.comparison_id }}/report.csv" class="btn-secondary">
       Download CSV
+    </a>
+    <a href="/compare/{{ comparison.comparison_id }}/report.json" class="btn-secondary">
+      Download JSON
     </a>
     <button onclick="window.print()" class="btn-secondary">Print / PDF</button>
   </div>
