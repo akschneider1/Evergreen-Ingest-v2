@@ -24,9 +24,28 @@ from pathlib import Path
 
 import langextract as lx
 from langextract import prompt_validation as pv
+from langextract.providers.openai import OpenAILanguageModel as _LxOpenAILanguageModel
 import yaml
 
 from examples import get_domain
+
+
+class _TimedOpenAILanguageModel(_LxOpenAILanguageModel):
+    """Thin subclass that sets an explicit HTTP timeout on the OpenAI client.
+
+    langextract creates openai.OpenAI() with no timeout (defaults to 600s).
+    This subclass replaces self._client after super().__init__() so every
+    chat.completions.create() call respects api_timeout from config.yaml.
+    """
+    def __init__(self, *, client_timeout: float, **kwargs):
+        super().__init__(**kwargs)
+        import openai as _oa
+        self._client = _oa.OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            organization=self.organization,
+            timeout=client_timeout,
+        )
 
 logger = logging.getLogger(__name__)
 
@@ -187,37 +206,52 @@ def extract_document(
                 "Set OPENAI_API_KEY (or GOOGLE_API_KEY) in your environment or .env file."
             )
 
-        # NOTE: langextract's OpenAI provider silently ignores 'timeout' in
-        # language_model_params — it is not forwarded to chat.completions.create().
-        # The OpenAI client defaults to a 600s read timeout. Work around this by
-        # running lx.extract() in a thread with our own deadline.
+        # For OpenAI models we pre-build the provider with an explicit HTTP
+        # timeout so chat.completions.create() aborts at api_timeout seconds.
+        # langextract's factory creates openai.OpenAI() with no timeout
+        # (defaults to 600s) and silently ignores 'timeout' in
+        # language_model_params. The thread wrapper below is a belt-and-
+        # suspenders fallback that covers Gemini and any future provider.
         extract_timeout = config.get("api_timeout", 90)
 
         def _do_extract() -> lx.data.AnnotatedDocument:
+            lx_model = None
+            if model.startswith("gpt"):
+                lx_model = _TimedOpenAILanguageModel(
+                    model_id=model,
+                    api_key=api_key,
+                    max_workers=config.get("max_workers", 1),
+                    client_timeout=float(extract_timeout),
+                    max_output_tokens=config.get("max_output_tokens", 2048),
+                )
             return lx.extract(
                 text_or_documents=document_text,
                 prompt_description=domain.prompt,
                 examples=domain.examples,
-                model_id=model,
+                model_id=model,          # still needed for format-type detection
+                model=lx_model,          # None → factory used (Gemini); set → bypasses factory
                 extraction_passes=passes,
                 max_workers=config.get("max_workers", 1),
                 max_char_buffer=effective_buffer,
                 show_progress=False,
-                api_key=api_key,
+                api_key=api_key,         # used by Gemini factory path; ignored for OpenAI
                 resolver_params={"suppress_parse_errors": True},
                 language_model_params={"max_output_tokens": config.get("max_output_tokens", 2048)},
                 prompt_validation_level=pv.PromptValidationLevel.OFF,
             )
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(_do_extract)
-            try:
-                result: lx.data.AnnotatedDocument = future.result(timeout=extract_timeout)
-            except concurrent.futures.TimeoutError:
-                raise RuntimeError(
-                    f"Extraction timed out after {extract_timeout}s. "
-                    "The API may be rate-limited or slow — try again, or check your key quota."
-                )
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = pool.submit(_do_extract)
+        try:
+            result: lx.data.AnnotatedDocument = future.result(timeout=extract_timeout)
+        except concurrent.futures.TimeoutError:
+            pool.shutdown(wait=False)  # don't block — the thread may be stuck in an API call
+            raise RuntimeError(
+                f"Extraction timed out after {extract_timeout}s. "
+                "The API may be rate-limited or slow — try again, or check your key quota."
+            )
+        finally:
+            pool.shutdown(wait=False)
 
         # Save JSONL (immutable source record)
         lx.io.save_annotated_documents(
