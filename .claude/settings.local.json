@@ -15,7 +15,11 @@
       "Bash(ls:*)",
       "Bash(curl:*)",
       "Bash(pkill:*)",
-      "Bash(fuser:*)"
+      "Bash(fuser:*)",
+      "Skill(claude-api)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
     ]
   }
 }
