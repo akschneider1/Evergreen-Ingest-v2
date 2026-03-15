@@ -411,3 +411,110 @@ details.advanced summary { cursor: pointer; color: #6b7280; font-size: 0.9rem; }
   border-radius: 4px;
   width: 100%;
 }
+
+/* Pizza tracker */
+.tracker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 2rem 0 1.5rem;
+  flex-wrap: nowrap;
+}
+.tracker-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 90px;
+}
+.tracker-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  background: white;
+  transition: all 0.3s;
+  position: relative;
+}
+.tracker-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-align: center;
+  transition: color 0.3s;
+  white-space: nowrap;
+}
+.tracker-line {
+  flex: 1;
+  height: 2px;
+  background: #e5e7eb;
+  margin-bottom: 1.4rem;
+  min-width: 24px;
+  transition: background 0.3s;
+}
+
+/* Waiting */
+.tracker-waiting .tracker-dot  { border-color: #d1d5db; background: white; }
+.tracker-waiting .tracker-label { color: #9ca3af; }
+
+/* Active */
+.tracker-active .tracker-dot {
+  border-color: #2563eb;
+  background: #2563eb;
+  box-shadow: 0 0 0 4px #dbeafe;
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+.tracker-active .tracker-label { color: #1d4ed8; font-weight: 600; }
+
+/* Done */
+.tracker-done .tracker-dot {
+  border-color: #16a34a;
+  background: #16a34a;
+}
+.tracker-done .tracker-dot::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tracker-done .tracker-label { color: #15803d; }
+.tracker-done + .tracker-line { background: #16a34a; }
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 4px #dbeafe; }
+  50%       { box-shadow: 0 0 0 8px #bfdbfe; }
+}
+
+/* Log dropdown */
+.log-dropdown {
+  margin-top: 1.25rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.log-dropdown summary {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+  cursor: pointer;
+  user-select: none;
+  background: #f9fafb;
+}
+.log-dropdown summary:hover { background: #f3f4f6; }
+.log-pre {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

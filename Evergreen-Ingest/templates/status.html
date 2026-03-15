@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="4">
 <title>Processing… — Evergreen Ingest</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -15,45 +14,164 @@
 </header>
 
 <main class="status-page">
-  <div class="status-card">
-    <h1>Processing your documents…</h1>
-    <p class="status-description">
-      {% if meta.status == "pending" %}
-        Queued for extraction.
-      {% elif meta.status == "extracting" %}
-        Running structured extraction on both documents. This may take 30–90 seconds
-        depending on document length.
-      {% elif meta.status == "comparing" %}
-        Extraction complete. Comparing parameters…
-      {% elif meta.status == "error" %}
-        An error occurred during processing.
-      {% else %}
-        Working…
-      {% endif %}
-    </p>
+  <div class="status-card" id="status-card">
 
-    {% if meta.status == "error" %}
-    <div class="error-box">
-      <strong>Error:</strong> {{ meta.error }}
+    <!-- Error state -->
+    <div id="error-view" style="display:none">
+      <h1>Processing failed</h1>
+      <div class="error-box" id="error-message"></div>
+      <details class="log-dropdown" id="error-log-section" style="display:none">
+        <summary>Show logs</summary>
+        <pre class="log-pre" id="error-log-body"></pre>
+      </details>
+      <p style="margin-top:1.5rem"><a href="/">← Start over</a></p>
     </div>
-    <p><a href="/">← Start over</a></p>
-    {% else %}
-    <div class="progress-spinner" aria-label="Processing"></div>
 
-    <dl class="meta-list">
-      <dt>Policy</dt><dd>{{ meta.policy_filename }}</dd>
-      <dt>Implementation</dt><dd>{{ meta.implementation_filename }}</dd>
-      <dt>Domain</dt><dd>{{ meta.domain | title }}</dd>
-      <dt>Status</dt><dd>{{ meta.status }}</dd>
-    </dl>
+    <!-- Processing state -->
+    <div id="processing-view">
+      <h1>Processing your documents…</h1>
 
-    <p class="refresh-note">This page refreshes automatically every 4 seconds.</p>
-    {% endif %}
+      <!-- Pizza tracker -->
+      <div class="tracker" aria-label="Progress steps">
+        <div class="tracker-step" id="step-pending">
+          <div class="tracker-dot"></div>
+          <span class="tracker-label">Queued</span>
+        </div>
+        <div class="tracker-line"></div>
+        <div class="tracker-step" id="step-extracting_policy">
+          <div class="tracker-dot"></div>
+          <span class="tracker-label">Extracting policy</span>
+        </div>
+        <div class="tracker-line"></div>
+        <div class="tracker-step" id="step-extracting_implementation">
+          <div class="tracker-dot"></div>
+          <span class="tracker-label">Extracting implementation</span>
+        </div>
+        <div class="tracker-line"></div>
+        <div class="tracker-step" id="step-comparing">
+          <div class="tracker-dot"></div>
+          <span class="tracker-label">Comparing</span>
+        </div>
+      </div>
+
+      <p class="status-description" id="status-description">Starting up…</p>
+
+      <dl class="meta-list">
+        <dt>Policy</dt><dd>{{ meta.policy_filename }}</dd>
+        <dt>Implementation</dt><dd>{{ meta.implementation_filename }}</dd>
+        <dt>Domain</dt><dd>{{ meta.domain | title }}</dd>
+      </dl>
+
+      <!-- Log dropdown -->
+      <details class="log-dropdown" id="log-section">
+        <summary>Show logs</summary>
+        <pre class="log-pre" id="log-body">Waiting for first log entry…</pre>
+      </details>
+
+      <p class="refresh-note" id="timeout-note"></p>
+    </div>
+
   </div>
 </main>
 
 <footer>
   <p>Evergreen Ingest</p>
 </footer>
+
+<script>
+const COMPARISON_ID = "{{ comparison_id }}";
+const POLL_INTERVAL_MS = 3000;
+const CLIENT_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes
+
+const STEP_ORDER = ["pending", "extracting_policy", "extracting_implementation", "comparing"];
+
+const STEP_DESCRIPTIONS = {
+  pending:                    "Queued for extraction…",
+  extracting_policy:          "Running structured extraction on the policy document. This usually takes 30–90 seconds.",
+  extracting_implementation:  "Running structured extraction on the implementation document.",
+  comparing:                  "Extraction complete. Matching and categorising parameters…",
+};
+
+function setTrackerState(status) {
+  const currentIdx = STEP_ORDER.indexOf(status);
+  STEP_ORDER.forEach((step, idx) => {
+    const el = document.getElementById("step-" + step);
+    if (!el) return;
+    el.classList.remove("tracker-done", "tracker-active", "tracker-waiting");
+    if (idx < currentIdx)       el.classList.add("tracker-done");
+    else if (idx === currentIdx) el.classList.add("tracker-active");
+    else                         el.classList.add("tracker-waiting");
+  });
+}
+
+function updateLogs(logs) {
+  if (!logs || logs.length === 0) return;
+  const body = document.getElementById("log-body");
+  if (body) body.textContent = logs.join("\n");
+}
+
+let startedAt = Date.now();
+
+async function poll() {
+  // Client-side timeout guard
+  if (Date.now() - startedAt > CLIENT_TIMEOUT_MS) {
+    showError(
+      "No response after 6 minutes. The server may be overloaded or the API is unresponsive. " +
+      "Please <a href='/'>start over</a> or check your API key and quota.",
+      []
+    );
+    return;
+  }
+
+  let data;
+  try {
+    const resp = await fetch(`/compare/${COMPARISON_ID}/status.json`);
+    if (!resp.ok) { setTimeout(poll, POLL_INTERVAL_MS); return; }
+    data = await resp.json();
+  } catch (e) {
+    setTimeout(poll, POLL_INTERVAL_MS);
+    return;
+  }
+
+  if (data.status === "ready") {
+    window.location.href = `/compare/${COMPARISON_ID}`;
+    return;
+  }
+
+  if (data.status === "error") {
+    showError(data.error || "An unknown error occurred.", data.logs || []);
+    return;
+  }
+
+  // Still processing
+  setTrackerState(data.status);
+  const desc = document.getElementById("status-description");
+  if (desc) desc.textContent = STEP_DESCRIPTIONS[data.status] || "Working…";
+  updateLogs(data.logs || []);
+
+  setTimeout(poll, POLL_INTERVAL_MS);
+}
+
+function showError(msg, logs) {
+  document.getElementById("processing-view").style.display = "none";
+  document.getElementById("error-view").style.display = "";
+  document.getElementById("error-message").innerHTML = msg;
+  if (logs && logs.length > 0) {
+    document.getElementById("error-log-section").style.display = "";
+    document.getElementById("error-log-body").textContent = logs.join("\n");
+  }
+}
+
+// Seed initial state from server render
+setTrackerState("{{ meta.status }}");
+{% if meta.logs %}
+updateLogs({{ meta.logs | tojson }});
+{% endif %}
+{% if meta.status == "error" %}
+showError({{ (meta.error or "An error occurred.") | tojson }}, {{ (meta.logs or []) | tojson }});
+{% else %}
+poll();
+{% endif %}
+</script>
 </body>
 </html>

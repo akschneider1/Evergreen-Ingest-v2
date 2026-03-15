@@ -61,6 +61,8 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 executor = ThreadPoolExecutor(max_workers=2)
 
+PIPELINE_TIMEOUT_SECONDS = 300  # 5 minutes
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -92,6 +94,24 @@ def _write_meta(comparison_id: str, meta: dict) -> None:
     os.replace(tmp, path)
 
 
+def _friendly_error(exc: Exception) -> str:
+    msg = str(exc)
+    low = msg.lower()
+    if "api_key" in low or "api key" in low or "authentication" in low or "unauthenticated" in low:
+        return "API key error — check that GOOGLE_API_KEY is set correctly in your environment."
+    if "quota" in low or "resource_exhausted" in low:
+        return "API quota exceeded. Wait a moment and try again, or check your Google Cloud quota."
+    if "rate" in low and ("limit" in low or "429" in msg):
+        return "API rate limit hit. Wait a moment and try again."
+    if "timeout" in low or "deadline" in low:
+        return "Request timed out. Try again — large documents occasionally need a retry."
+    if ("model" in low and ("not found" in low or "invalid" in low)) or "404" in msg:
+        return f"Model not found or unavailable. Check MODEL_ID in config.yaml. Detail: {msg}"
+    if "permission" in low or "403" in msg:
+        return "Permission denied. Ensure your API key has access to the Gemini API."
+    return msg
+
+
 def _allowed_suffix(filename: str) -> bool:
     return Path(filename).suffix.lower() in {
         ".md", ".txt", ".html", ".htm", ".pdf", ".docx"
@@ -110,12 +130,21 @@ def _run_pipeline(
 ) -> None:
     """Run both extractions and comparison. Called in a thread pool."""
     meta = _read_meta(comparison_id)
+    meta["logs"] = []
+    meta["started_at"] = datetime.now(timezone.utc).isoformat()
 
-    try:
-        meta["status"] = "extracting"
+    def _log(msg: str) -> None:
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        entry = f"[{ts}] {msg}"
+        logger.info("[%s] %s", comparison_id, msg)
+        meta["logs"].append(entry)
         _write_meta(comparison_id, meta)
 
-        logger.info("[%s] Extracting policy document…", comparison_id)
+    try:
+        meta["status"] = "extracting_policy"
+        _write_meta(comparison_id, meta)
+        _log(f"Extracting parameters from policy document ({policy_path.name})…")
+
         policy_jsonl, _, policy_doc = extract_module.extract_document(
             source_path=policy_path,
             domain_name=domain,
@@ -123,8 +152,13 @@ def _run_pipeline(
             comparison_id=comparison_id,
             doc_slot="policy",
         )
+        n_policy = len(policy_doc.extractions or [])
+        _log(f"Policy extraction complete — {n_policy} parameter(s) found.")
 
-        logger.info("[%s] Extracting implementation document…", comparison_id)
+        meta["status"] = "extracting_implementation"
+        _write_meta(comparison_id, meta)
+        _log(f"Extracting parameters from implementation document ({impl_path.name})…")
+
         impl_jsonl, _, impl_doc = extract_module.extract_document(
             source_path=impl_path,
             domain_name=domain,
@@ -132,11 +166,13 @@ def _run_pipeline(
             comparison_id=comparison_id,
             doc_slot="implementation",
         )
+        n_impl = len(impl_doc.extractions or [])
+        _log(f"Implementation extraction complete — {n_impl} parameter(s) found.")
 
         meta["status"] = "comparing"
         _write_meta(comparison_id, meta)
+        _log("Comparing parameters across both documents…")
 
-        logger.info("[%s] Comparing extractions…", comparison_id)
         compare_module.compare_extractions(
             policy_doc=policy_doc,
             impl_doc=impl_doc,
@@ -145,6 +181,7 @@ def _run_pipeline(
             output_dir=OUTPUT_DIR,
         )
 
+        _log("Comparison complete. Loading results…")
         meta["status"] = "ready"
         _write_meta(comparison_id, meta)
         logger.info("[%s] Pipeline complete.", comparison_id)
@@ -152,7 +189,8 @@ def _run_pipeline(
     except Exception as exc:
         logger.exception("[%s] Pipeline failed: %s", comparison_id, exc)
         meta["status"] = "error"
-        meta["error"] = str(exc)
+        meta["error"] = _friendly_error(exc)
+        meta["logs"].append(f"[error] {exc}")
         _write_meta(comparison_id, meta)
 
 
@@ -257,9 +295,31 @@ async def upload(
     )
 
 
+def _check_timeout(meta: dict) -> dict:
+    """If still processing and past the timeout, mark as error."""
+    if meta.get("status") not in ("ready", "error"):
+        ref = meta.get("started_at") or meta.get("created_at")
+        if ref:
+            elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(ref)).total_seconds()
+            if elapsed > PIPELINE_TIMEOUT_SECONDS:
+                meta["status"] = "error"
+                meta["error"] = (
+                    f"Processing timed out after {PIPELINE_TIMEOUT_SECONDS // 60} minutes. "
+                    "This sometimes happens with very large documents or API delays — please try again."
+                )
+                _write_meta(meta["comparison_id"], meta)
+    return meta
+
+
+@app.get("/compare/{comparison_id}/status.json")
+async def status_json(comparison_id: str):
+    meta = _check_timeout(_read_meta(comparison_id))
+    return JSONResponse(meta)
+
+
 @app.get("/compare/{comparison_id}/status", response_class=HTMLResponse)
 async def status_page(request: Request, comparison_id: str):
-    meta = _read_meta(comparison_id)
+    meta = _check_timeout(_read_meta(comparison_id))
     if meta["status"] == "ready":
         return RedirectResponse(url=f"/compare/{comparison_id}", status_code=303)
     return templates.TemplateResponse(
