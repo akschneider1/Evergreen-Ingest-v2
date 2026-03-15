@@ -100,8 +100,14 @@ def extract_document(
         model_id=config.get("model_id", "gemini-2.5-flash"),
         extraction_passes=config.get("extraction_passes", 3),
         max_workers=config.get("max_workers", 4),
+        max_char_buffer=config.get("max_char_buffer", 6000),
         show_progress=False,
         api_key=api_key,
+        # Suppress per-chunk JSON parse errors (e.g. truncated responses hitting
+        # output token limits) so the pipeline continues with partial results
+        # rather than crashing entirely.
+        resolver_params={"suppress_parse_errors": True},
+        language_model_params={"max_output_tokens": config.get("max_output_tokens", 8192)},
     )
 
     # Save JSONL (immutable source record)

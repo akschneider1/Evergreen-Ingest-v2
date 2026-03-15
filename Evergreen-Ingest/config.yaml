@@ -1,6 +1,8 @@
 model_id: gemini-2.5-flash
 extraction_passes: 3
 max_workers: 4
+max_output_tokens: 8192  # Increase if seeing truncated JSON errors
+max_char_buffer: 6000    # Smaller chunks = less output per call = fewer truncations
 domains:
   - tax
   - benefits
