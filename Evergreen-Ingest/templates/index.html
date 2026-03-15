@@ -72,10 +72,16 @@
           <span class="label-hint">Extraction quality vs. speed</span>
         </label>
         <select name="model" id="model">
-          <option value="gpt-4o-mini">gpt-4o-mini — Fast · low cost</option>
-          <option value="gpt-4o">gpt-4o — Accurate</option>
-          <option value="gpt-4.1-mini">gpt-4.1-mini — Fast · low cost</option>
-          <option value="gpt-4.1">gpt-4.1 — Most accurate</option>
+          <optgroup label="OpenAI — requires OPENAI_API_KEY">
+            <option value="gpt-4o-mini">gpt-4o-mini — Fast · low cost · 128K ctx</option>
+            <option value="gpt-4o">gpt-4o — Accurate · 128K ctx</option>
+            <option value="gpt-4.1-mini">gpt-4.1-mini — Fast · low cost · 1M ctx</option>
+            <option value="gpt-4.1">gpt-4.1 — Most accurate · 1M ctx</option>
+          </optgroup>
+          <optgroup label="Google Gemini — requires GOOGLE_API_KEY · best for large docs">
+            <option value="gemini-2.5-flash">gemini-2.5-flash — Fast · very low cost · 1M ctx</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash — Fast · low cost · 1M ctx</option>
+          </optgroup>
         </select>
       </div>
     </div>
