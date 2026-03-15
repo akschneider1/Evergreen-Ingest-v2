@@ -24,7 +24,8 @@
       "Bash(git push:*)",
       "Bash(git commit:*)",
       "Bash(pip show:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(git:*)"
     ]
   }
 }
