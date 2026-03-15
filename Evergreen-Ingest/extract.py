@@ -36,6 +36,15 @@ def _load_config() -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
 
+# Module-level cache — config.yaml is read once per process, not per extraction call.
+_CONFIG: dict | None = None
+
+def _get_config() -> dict:
+    global _CONFIG
+    if _CONFIG is None:
+        _CONFIG = _load_config()
+    return _CONFIG
+
 
 def read_document(source_path: str | Path) -> str:
     """Read a document to plain text. Handles .md, .txt, .html; returns raw bytes for PDF/DOCX."""
@@ -122,7 +131,7 @@ def extract_document(
         - viz_path: path to saved HTML visualization
         - annotated_doc: lx.data.AnnotatedDocument
     """
-    config = _load_config()
+    config = _get_config()
     domain = get_domain(domain_name)
 
     output_dir = Path(output_dir)
