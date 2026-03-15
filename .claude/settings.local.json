@@ -26,7 +26,8 @@
       "Bash(pip show:*)",
       "Bash(head:*)",
       "Bash(git:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(find:*)"
     ]
   }
 }

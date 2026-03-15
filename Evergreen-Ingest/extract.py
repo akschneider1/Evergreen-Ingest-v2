@@ -45,6 +45,7 @@ class _TimedOpenAILanguageModel(_LxOpenAILanguageModel):
             base_url=self.base_url,
             organization=self.organization,
             timeout=client_timeout,
+            max_retries=0,  # surface errors immediately — don't silently retry/backoff
         )
 
 logger = logging.getLogger(__name__)
@@ -215,6 +216,10 @@ def extract_document(
         extract_timeout = config.get("api_timeout", 90)
 
         def _do_extract() -> lx.data.AnnotatedDocument:
+            logger.info(
+                "lx.extract starting — %s/%s model=%s doc_len=%d",
+                comparison_id, doc_slot, model, len(document_text),
+            )
             lx_model = None
             if model.startswith("gpt"):
                 lx_model = _TimedOpenAILanguageModel(

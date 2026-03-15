@@ -153,37 +153,32 @@ def _run_pipeline(
         meta["status"] = "extracting"
         _write_meta(comparison_id, meta)
         _log(
-            f"Extracting both documents in parallel… "
+            f"Extracting policy document… "
             f"(model={model_id}, {passes} pass{'es' if passes != 1 else ''})"
         )
 
-        # Run policy and implementation extractions concurrently — they are
-        # fully independent so there is no reason to serialize them.
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as extraction_pool:
-            policy_future = extraction_pool.submit(
-                extract_module.extract_document,
-                source_path=policy_path,
-                domain_name=domain,
-                output_dir=OUTPUT_DIR,
-                comparison_id=comparison_id,
-                doc_slot="policy",
-                extraction_passes=passes,
-                model_id=model_id,
-            )
-            impl_future = extraction_pool.submit(
-                extract_module.extract_document,
-                source_path=impl_path,
-                domain_name=domain,
-                output_dir=OUTPUT_DIR,
-                comparison_id=comparison_id,
-                doc_slot="implementation",
-                extraction_passes=passes,
-                model_id=model_id,
-            )
+        # Run extractions sequentially to avoid concurrent API calls that can
+        # trigger rate limits on accounts with tight per-minute quotas.
+        policy_jsonl, _, policy_doc = extract_module.extract_document(
+            source_path=policy_path,
+            domain_name=domain,
+            output_dir=OUTPUT_DIR,
+            comparison_id=comparison_id,
+            doc_slot="policy",
+            extraction_passes=passes,
+            model_id=model_id,
+        )
 
-            # Collect results; re-raise any extraction exception on the main thread
-            policy_jsonl, _, policy_doc = policy_future.result()
-            impl_jsonl, _, impl_doc = impl_future.result()
+        _log("Extracting implementation document…")
+        impl_jsonl, _, impl_doc = extract_module.extract_document(
+            source_path=impl_path,
+            domain_name=domain,
+            output_dir=OUTPUT_DIR,
+            comparison_id=comparison_id,
+            doc_slot="implementation",
+            extraction_passes=passes,
+            model_id=model_id,
+        )
 
         n_policy = len(policy_doc.extractions or [])
         n_impl = len(impl_doc.extractions or [])
