@@ -29,7 +29,14 @@
       "Bash(wc:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(which dot:*)",
+      "Bash(apt-get install:*)",
+      "Bash(nix-env:*)",
+      "Bash(echo:*)",
+      "Bash(dot -Tsvg)",
+      "Read(//tmp/**)",
+      "WebFetch(domain:api.github.com)"
     ]
   }
 }
