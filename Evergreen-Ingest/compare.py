@@ -27,23 +27,25 @@ def _normalize(value: Any) -> str:
     return str(value).strip().lower()
 
 
-def _jaccard(attrs_a: dict, attrs_b: dict) -> float:
+def _similarity(attrs_a: dict, attrs_b: dict) -> float:
     """
-    Jaccard similarity between two attribute dicts based on shared keys.
-    Key overlap is used for finding match candidates (are these the same
-    parameter?). Value equality is determined separately for matched/drifted.
-    Keys present in only one side reduce the score.
+    Match on the 'parameter' key when present (semantically correct for policy docs).
+    Fall back to key-overlap (Jaccard) for extractions without a 'parameter' key.
     """
-    if not attrs_a and not attrs_b:
-        return 1.0
-    if not attrs_a or not attrs_b:
+    p = (attrs_a or {}).get("parameter", "").lower().strip()
+    i = (attrs_b or {}).get("parameter", "").lower().strip()
+    if p and i:
+        if p == i:
+            return 1.0
+        if p in i or i in p:
+            return 0.7  # substring match
         return 0.0
-
-    keys_a = set(attrs_a)
-    keys_b = set(attrs_b)
-    intersection = len(keys_a & keys_b)
-    union = len(keys_a | keys_b)
-    return intersection / union
+    # Fallback: Jaccard on key sets
+    keys_a = set(attrs_a or {})
+    keys_b = set(attrs_b or {})
+    if not keys_a or not keys_b:
+        return 0.0
+    return len(keys_a & keys_b) / len(keys_a | keys_b)
 
 
 def _values_equal(attrs_a: dict, attrs_b: dict) -> tuple[bool, list[str]]:
@@ -88,7 +90,7 @@ def _match_extractions(
 
     Matching strategy:
       1. Group by extraction_class.
-      2. Within each class, compute pairwise Jaccard similarity.
+      2. Within each class, compute pairwise similarity (parameter name, then key-overlap).
       3. Greedily pair highest-similarity pairs (>= 0.3 threshold).
       4. Determine matched vs drifted based on value equality.
       5. Unmatched policy → missing; unmatched impl → extra.
@@ -152,7 +154,7 @@ def _match_extractions(
             p_attrs = (p_ext.attributes or {})
             for ii, i_ext in enumerate(impl_group):
                 i_attrs = (i_ext.attributes or {})
-                sim = _jaccard(p_attrs, i_attrs)
+                sim = _similarity(p_attrs, i_attrs)
                 pairs.append((sim, pi, ii))
 
         # Sort descending by similarity, greedily match

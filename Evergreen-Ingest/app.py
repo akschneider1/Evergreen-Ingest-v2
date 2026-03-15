@@ -19,7 +19,7 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -65,7 +65,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 executor = ThreadPoolExecutor(max_workers=2)
 
-PIPELINE_TIMEOUT_SECONDS = 300  # 5 minutes
+PIPELINE_TIMEOUT_SECONDS = 600  # 10 minutes
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +241,6 @@ ALLOWED_MODELS = {
 
 @app.post("/upload")
 async def upload(
-    background_tasks: BackgroundTasks,
     policy_file: UploadFile = Form(...),
     implementation_file: UploadFile = Form(...),
     domain: str = Form(...),
@@ -317,11 +316,7 @@ async def upload(
     _write_meta(comparison_id, meta)
 
     # Kick off extraction in background thread
-    background_tasks.add_task(
-        lambda: executor.submit(
-            _run_pipeline, comparison_id, policy_path, impl_path, domain
-        )
-    )
+    executor.submit(_run_pipeline, comparison_id, policy_path, impl_path, domain)
 
     return RedirectResponse(
         url=f"/compare/{comparison_id}/status", status_code=303

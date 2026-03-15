@@ -27,7 +27,9 @@
       "Bash(head:*)",
       "Bash(git:*)",
       "Bash(wc:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)"
     ]
   }
 }
