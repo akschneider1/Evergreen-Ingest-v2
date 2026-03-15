@@ -6,9 +6,12 @@ expertMode = true
 [nix]
 channel = "stable-25_05"
 
-[run]
-command = "cd Evergreen-Ingest && pip install -r requirements.txt -q && python app.py"
+run = "cd Evergreen-Ingest && pip install -r requirements.txt -q && python app.py"
 
 [[ports]]
 localPort = 8000
 externalPort = 80
+
+[deployment]
+run = ["sh", "-c", "cd Evergreen-Ingest && pip install -r requirements.txt -q && python app.py"]
+deploymentTarget = "cloudrun"
