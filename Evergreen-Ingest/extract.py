@@ -212,14 +212,23 @@ def extract_document(
         show_progress=False,
     )
 
-    # Generate and save HTML visualization
+    # Generate and save HTML visualization.
+    # Pass the AnnotatedDocument directly — avoids re-reading the JSONL file
+    # and handles edge cases where document_id is falsy (empty JSONL).
     try:
-        html_str = lx.visualize(str(jsonl_path))
+        html_str = lx.visualize(result)
+        if not isinstance(html_str, str):
+            # IPython HTML object (only in Jupyter; shouldn't happen here)
+            html_str = html_str.data if hasattr(html_str, "data") else str(html_str)
         viz_path.write_text(html_str, encoding="utf-8")
     except Exception as exc:
-        logger.warning("Visualization generation failed: %s", exc)
+        logger.warning("Visualization generation failed for %s/%s: %s", comparison_id, doc_slot, exc)
         viz_path.write_text(
-            f"<p>Visualization unavailable: {exc}</p>", encoding="utf-8"
+            f"<html><body style='font-family:sans-serif;padding:2rem;color:#666'>"
+            f"<p><strong>Visualization unavailable</strong></p>"
+            f"<p>{type(exc).__name__}: {exc}</p>"
+            f"</body></html>",
+            encoding="utf-8",
         )
 
     logger.info(

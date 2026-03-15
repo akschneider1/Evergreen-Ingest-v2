@@ -22,6 +22,7 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -64,6 +65,32 @@ for sub in ("extractions", "visualizations", "comparisons", "validations"):
 app = FastAPI(title="Evergreen Ingest")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Return user-friendly HTML for 404s instead of bare JSON."""
+    if exc.status_code == 404:
+        return HTMLResponse(
+            content=(
+                f"<html><head><title>Not Found — Evergreen Ingest</title>"
+                f"<link rel='stylesheet' href='/static/style.css'></head>"
+                f"<body>"
+                f"<header><div class='header-inner'>"
+                f"<a href='/' class='logo'>Evergreen Ingest</a>"
+                f"<nav class='header-nav'><a href='/comparisons'>History</a></nav>"
+                f"</div></header>"
+                f"<main style='padding:3rem 2rem;max-width:600px;margin:0 auto'>"
+                f"<h1 style='color:#dc2626'>Not Found</h1>"
+                f"<p style='color:#555'>{exc.detail}</p>"
+                f"<p>The comparison may have been lost if the server restarted. "
+                f"<a href='/comparisons'>View history</a> or "
+                f"<a href='/'>start a new comparison</a>.</p>"
+                f"</main></body></html>"
+            ),
+            status_code=404,
+        )
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 executor = ThreadPoolExecutor(max_workers=2)
 
@@ -454,7 +481,17 @@ async def viz(comparison_id: str, doc_slot: str):
         raise HTTPException(status_code=400, detail="doc_slot must be 'policy' or 'implementation'")
     viz_path = OUTPUT_DIR / "visualizations" / comparison_id / f"{doc_slot}.html"
     if not viz_path.exists():
-        raise HTTPException(status_code=404, detail="Visualization not found")
+        return HTMLResponse(
+            content=(
+                "<html><body style='font-family:sans-serif;padding:2rem;color:#888'>"
+                "<p><strong>Visualization not available.</strong></p>"
+                "<p>The extraction visualization for this document could not be found. "
+                "This can happen if the server was restarted after the extraction ran. "
+                "Re-running the comparison will regenerate it.</p>"
+                "</body></html>"
+            ),
+            status_code=200,
+        )
     html = viz_path.read_text(encoding="utf-8")
     # Inject scroll-to-highlight JS so callers can link to #idx=N
     if "</body>" in html:
