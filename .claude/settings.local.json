@@ -19,7 +19,9 @@
       "Skill(claude-api)",
       "Bash(python3:*)",
       "Bash(python:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ]
   }
 }
