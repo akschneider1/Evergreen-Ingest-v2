@@ -98,12 +98,14 @@ def _write_meta(comparison_id: str, meta: dict) -> None:
     os.replace(tmp, path)
 
 
-def _friendly_error(exc: Exception) -> str:
+def _friendly_error(exc: Exception, model_id: str = "") -> str:
     msg = str(exc)
     low = msg.lower()
     if "api_key" in low or "api key" in low or "authentication" in low or "unauthenticated" in low or "incorrect api key" in low:
         return "API key error — check that OPENAI_API_KEY (or GOOGLE_API_KEY) is set correctly in your environment."
     if "quota" in low or "resource_exhausted" in low:
+        if model_id.startswith("gpt"):
+            return "API quota exceeded. Wait a moment and try again, or check your OpenAI quota at platform.openai.com."
         return "API quota exceeded. Wait a moment and try again, or check your Google Cloud quota."
     if "rate" in low and ("limit" in low or "429" in msg):
         return "API rate limit hit. Wait a moment and try again."
@@ -112,7 +114,7 @@ def _friendly_error(exc: Exception) -> str:
     if ("model" in low and ("not found" in low or "invalid" in low)) or "404" in msg:
         return f"Model not found or unavailable. Check MODEL_ID in config.yaml. Detail: {msg}"
     if "permission" in low or "403" in msg:
-        return "Permission denied. Ensure your API key has access to the Gemini API."
+        return "Permission denied. Ensure your API key has access to the selected model's API."
     return msg
 
 
@@ -210,7 +212,7 @@ def _run_pipeline(
     except Exception as exc:
         logger.exception("[%s] Pipeline failed: %s", comparison_id, exc)
         meta["status"] = "error"
-        meta["error"] = _friendly_error(exc)
+        meta["error"] = _friendly_error(exc, model_id=model_id)
         meta["logs"].append(f"[error] {exc}")
         _write_meta(comparison_id, meta)
 
