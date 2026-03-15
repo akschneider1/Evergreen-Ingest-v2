@@ -143,7 +143,8 @@ def _run_pipeline(
     try:
         meta["status"] = "extracting_policy"
         _write_meta(comparison_id, meta)
-        _log(f"Extracting parameters from policy document ({policy_path.name})…")
+        passes = meta.get("extraction_passes", CONFIG.get("extraction_passes", 3))
+        _log(f"Extracting parameters from policy document ({policy_path.name})… ({passes} pass{'es' if passes != 1 else ''})")
 
         policy_jsonl, _, policy_doc = extract_module.extract_document(
             source_path=policy_path,
@@ -151,13 +152,14 @@ def _run_pipeline(
             output_dir=OUTPUT_DIR,
             comparison_id=comparison_id,
             doc_slot="policy",
+            extraction_passes=passes,
         )
         n_policy = len(policy_doc.extractions or [])
         _log(f"Policy extraction complete — {n_policy} parameter(s) found.")
 
         meta["status"] = "extracting_implementation"
         _write_meta(comparison_id, meta)
-        _log(f"Extracting parameters from implementation document ({impl_path.name})…")
+        _log(f"Extracting parameters from implementation document ({impl_path.name})… ({passes} pass{'es' if passes != 1 else ''})")
 
         impl_jsonl, _, impl_doc = extract_module.extract_document(
             source_path=impl_path,
@@ -165,6 +167,7 @@ def _run_pipeline(
             output_dir=OUTPUT_DIR,
             comparison_id=comparison_id,
             doc_slot="implementation",
+            extraction_passes=passes,
         )
         n_impl = len(impl_doc.extractions or [])
         _log(f"Implementation extraction complete — {n_impl} parameter(s) found.")
@@ -223,6 +226,7 @@ async def upload(
     custom_prompt: str = Form(""),
     policy_demo: str = Form(""),
     implementation_demo: str = Form(""),
+    extraction_passes: int = Form(3),
 ):
     # Substitute demo fixture if no real file was uploaded
     def _resolve(upload: UploadFile, demo_key: str) -> tuple[str, bytes]:
@@ -279,6 +283,7 @@ async def upload(
         "implementation_filename": impl_name,
         "policy_path": str(policy_path.relative_to(BASE_DIR)),
         "implementation_path": str(impl_path.relative_to(BASE_DIR)),
+        "extraction_passes": max(1, min(5, extraction_passes)),
         "error": None,
     }
     _write_meta(comparison_id, meta)

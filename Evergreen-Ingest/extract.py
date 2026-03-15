@@ -63,6 +63,7 @@ def extract_document(
     output_dir: str | Path,
     comparison_id: str,
     doc_slot: str,  # "policy" or "implementation"
+    extraction_passes: int | None = None,
 ) -> tuple[Path, Path, object]:
     """
     Run langextract on a document using domain-specific few-shot examples.
@@ -98,7 +99,7 @@ def extract_document(
         prompt_description=domain.prompt,
         examples=domain.examples,
         model_id=config.get("model_id", "gemini-2.5-flash"),
-        extraction_passes=config.get("extraction_passes", 3),
+        extraction_passes=extraction_passes if extraction_passes is not None else config.get("extraction_passes", 3),
         max_workers=config.get("max_workers", 4),
         max_char_buffer=config.get("max_char_buffer", 6000),
         show_progress=False,

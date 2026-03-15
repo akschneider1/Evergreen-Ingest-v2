@@ -78,6 +78,25 @@
       </div>
     </div>
 
+    <div class="form-row">
+      <div class="form-group">
+        <label for="extraction_passes">
+          <strong>Extraction passes</strong>
+          <span class="label-hint">More passes = higher recall, slower &amp; costlier</span>
+        </label>
+        <div class="slider-row">
+          <span class="slider-label">1 — Fast</span>
+          <input type="range" id="extraction_passes" name="extraction_passes"
+                 min="1" max="5" value="3" step="1"
+                 oninput="document.getElementById('passes-value').textContent = this.value">
+          <span class="slider-label">5 — Thorough</span>
+        </div>
+        <div class="slider-value-row">
+          <span id="passes-value">3</span> pass<span id="passes-plural">es</span>
+        </div>
+      </div>
+    </div>
+
     <details class="advanced">
       <summary>Custom extraction prompt (optional)</summary>
       <div class="form-group">
@@ -108,6 +127,9 @@ function toggleRequired(fileInputId, demoValue) {
   const fileInput = document.getElementById(fileInputId);
   fileInput.required = !demoValue;
 }
+document.getElementById('extraction_passes').addEventListener('input', function() {
+  document.getElementById('passes-plural').textContent = this.value === '1' ? '' : 'es';
+});
 </script>
 </body>
 </html>
