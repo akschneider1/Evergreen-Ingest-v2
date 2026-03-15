@@ -143,8 +143,9 @@ def _run_pipeline(
     try:
         meta["status"] = "extracting_policy"
         _write_meta(comparison_id, meta)
-        passes = meta.get("extraction_passes", CONFIG.get("extraction_passes", 3))
-        _log(f"Extracting parameters from policy document ({policy_path.name})… ({passes} pass{'es' if passes != 1 else ''})")
+        passes = meta.get("extraction_passes", CONFIG.get("extraction_passes", 1))
+        model_id = meta.get("model", CONFIG.get("model_id", "gpt-4o-mini"))
+        _log(f"Extracting parameters from policy document ({policy_path.name})… (model={model_id}, {passes} pass{'es' if passes != 1 else ''})")
 
         policy_jsonl, _, policy_doc = extract_module.extract_document(
             source_path=policy_path,
@@ -153,13 +154,14 @@ def _run_pipeline(
             comparison_id=comparison_id,
             doc_slot="policy",
             extraction_passes=passes,
+            model_id=model_id,
         )
         n_policy = len(policy_doc.extractions or [])
         _log(f"Policy extraction complete — {n_policy} parameter(s) found.")
 
         meta["status"] = "extracting_implementation"
         _write_meta(comparison_id, meta)
-        _log(f"Extracting parameters from implementation document ({impl_path.name})… ({passes} pass{'es' if passes != 1 else ''})")
+        _log(f"Extracting parameters from implementation document ({impl_path.name})… (model={model_id}, {passes} pass{'es' if passes != 1 else ''})")
 
         impl_jsonl, _, impl_doc = extract_module.extract_document(
             source_path=impl_path,
@@ -168,6 +170,7 @@ def _run_pipeline(
             comparison_id=comparison_id,
             doc_slot="implementation",
             extraction_passes=passes,
+            model_id=model_id,
         )
         n_impl = len(impl_doc.extractions or [])
         _log(f"Implementation extraction complete — {n_impl} parameter(s) found.")
@@ -217,16 +220,23 @@ DEMO_FILES = {
 }
 
 
+ALLOWED_MODELS = {
+    "gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1",
+    "gemini-2.5-flash", "gemini-2.0-flash",
+}
+
+
 @app.post("/upload")
 async def upload(
     background_tasks: BackgroundTasks,
     policy_file: UploadFile = Form(...),
     implementation_file: UploadFile = Form(...),
     domain: str = Form(...),
+    model: str = Form("gpt-4o-mini"),
     custom_prompt: str = Form(""),
     policy_demo: str = Form(""),
     implementation_demo: str = Form(""),
-    extraction_passes: int = Form(3),
+    extraction_passes: int = Form(1),
 ):
     # Substitute demo fixture if no real file was uploaded
     def _resolve(upload: UploadFile, demo_key: str) -> tuple[str, bytes]:
@@ -272,12 +282,17 @@ async def upload(
     policy_path.write_bytes(policy_bytes)
     impl_path.write_bytes(impl_bytes)
 
+    # Validate model
+    if model not in ALLOWED_MODELS:
+        model = "gpt-4o-mini"
+
     # Write initial meta (status: pending)
     meta = {
         "comparison_id": comparison_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "pending",
         "domain": domain,
+        "model": model,
         "custom_prompt": custom_prompt,
         "policy_filename": policy_name,
         "implementation_filename": impl_name,

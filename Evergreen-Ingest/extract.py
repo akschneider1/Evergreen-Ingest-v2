@@ -64,6 +64,7 @@ def extract_document(
     comparison_id: str,
     doc_slot: str,  # "policy" or "implementation"
     extraction_passes: int | None = None,
+    model_id: str | None = None,
 ) -> tuple[Path, Path, object]:
     """
     Run langextract on a document using domain-specific few-shot examples.
@@ -85,7 +86,7 @@ def extract_document(
 
     document_text = read_document(source_path)
     passes = extraction_passes if extraction_passes is not None else config.get("extraction_passes", 1)
-    model = config.get("model_id", "gpt-4o-mini")
+    model = model_id if model_id is not None else config.get("model_id", "gpt-4o-mini")
     logger.info(
         "Starting extraction %s/%s — %d chars, model=%s, passes=%d",
         comparison_id,

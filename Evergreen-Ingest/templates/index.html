@@ -15,60 +15,49 @@
 </header>
 
 <main class="upload-page">
-  <h1>Detect Policy Drift</h1>
-  <p class="lead">Upload two documents: the authoritative policy and an implementation artifact
-  (training manual, agent script, FAQ, knowledge base). The tool extracts structured parameters
-  from both and shows what's matched, drifted, missing, or extra.</p>
-
   <form method="POST" action="/upload" enctype="multipart/form-data" class="upload-form">
 
+    <!-- Document pair -->
     <div class="form-row two-col">
       <div class="form-group">
         <label for="policy_file">
-          <strong>Source Policy</strong>
+          Source Policy
           <span class="label-hint">The authority — what should be true</span>
         </label>
-        <details class="demo-picker">
-          <summary>Use demo data</summary>
-          <select name="policy_demo" id="policy_demo" onchange="toggleRequired('policy_file', this.value)">
-            <option value="">— none —</option>
-            <option value="tax_policy">Tax policy (Colorado DOR)</option>
-            <option value="benefits_policy">Benefits policy (Colorado CDLE)</option>
-          </select>
-        </details>
-        <input type="file"
-               id="policy_file"
-               name="policy_file"
+        <div class="demo-chips">
+          <span class="demo-chips-label">Try a demo:</span>
+          <button type="button" class="demo-chip" data-slot="policy" data-key="tax_policy">Tax · DOR</button>
+          <button type="button" class="demo-chip" data-slot="policy" data-key="benefits_policy">Benefits · CDLE</button>
+        </div>
+        <input type="hidden" name="policy_demo" id="policy_demo">
+        <input type="file" id="policy_file" name="policy_file"
                accept=".md,.txt,.html,.htm,.pdf,.docx">
         <span class="file-hint">PDF, DOCX, HTML, Markdown, or plain text · max 5 MB</span>
       </div>
 
       <div class="form-group">
         <label for="implementation_file">
-          <strong>Implementation Artifact</strong>
-          <span class="label-hint">What's actually in use — training manual, FAQ, script</span>
+          Implementation Artifact
+          <span class="label-hint">What's in use — training manual, FAQ, script</span>
         </label>
-        <details class="demo-picker">
-          <summary>Use demo data</summary>
-          <select name="implementation_demo" id="implementation_demo" onchange="toggleRequired('implementation_file', this.value)">
-            <option value="">— none —</option>
-            <option value="tax_implementation">Tax training manual (stale)</option>
-            <option value="benefits_implementation">Benefits training manual (stale)</option>
-          </select>
-        </details>
-        <input type="file"
-               id="implementation_file"
-               name="implementation_file"
+        <div class="demo-chips">
+          <span class="demo-chips-label">Try a demo:</span>
+          <button type="button" class="demo-chip" data-slot="implementation" data-key="tax_implementation">Tax · DOR</button>
+          <button type="button" class="demo-chip" data-slot="implementation" data-key="benefits_implementation">Benefits · CDLE</button>
+        </div>
+        <input type="hidden" name="implementation_demo" id="implementation_demo">
+        <input type="file" id="implementation_file" name="implementation_file"
                accept=".md,.txt,.html,.htm,.pdf,.docx">
         <span class="file-hint">PDF, DOCX, HTML, Markdown, or plain text · max 5 MB</span>
       </div>
     </div>
 
-    <div class="form-row">
+    <!-- Config row -->
+    <div class="form-row two-col">
       <div class="form-group">
         <label for="domain">
-          <strong>Parameter Domain</strong>
-          <span class="label-hint">Loads preset extraction schema for this domain</span>
+          Domain
+          <span class="label-hint">Preset extraction schema</span>
         </label>
         <select name="domain" id="domain">
           {% for d in domains %}
@@ -76,43 +65,57 @@
           {% endfor %}
         </select>
       </div>
-    </div>
 
-    <div class="form-row">
       <div class="form-group">
-        <label for="extraction_passes">
-          <strong>Extraction passes</strong>
-          <span class="label-hint">More passes = higher recall, slower &amp; costlier</span>
+        <label for="model">
+          Model
+          <span class="label-hint">Extraction quality vs. speed</span>
         </label>
-        <div class="slider-row">
-          <span class="slider-label">1 — Fast</span>
-          <input type="range" id="extraction_passes" name="extraction_passes"
-                 min="1" max="5" value="3" step="1"
-                 oninput="document.getElementById('passes-value').textContent = this.value">
-          <span class="slider-label">5 — Thorough</span>
-        </div>
-        <div class="slider-value-row">
-          <span id="passes-value">3</span> pass<span id="passes-plural">es</span>
-        </div>
+        <select name="model" id="model">
+          <option value="gpt-4o-mini">gpt-4o-mini — Fast · low cost</option>
+          <option value="gpt-4o">gpt-4o — Accurate</option>
+          <option value="gpt-4.1-mini">gpt-4.1-mini — Fast · low cost</option>
+          <option value="gpt-4.1">gpt-4.1 — Most accurate</option>
+        </select>
       </div>
     </div>
 
+    <!-- Advanced -->
     <details class="advanced">
-      <summary>Custom extraction prompt (optional)</summary>
-      <div class="form-group">
-        <label for="custom_prompt">
-          Describe what parameters to look for, in plain language.
-          Leave blank to use the domain preset.
-        </label>
-        <textarea name="custom_prompt"
-                  id="custom_prompt"
-                  rows="4"
-                  placeholder="e.g. Check for income thresholds, filing deadlines, penalty amounts, credit eligibility."></textarea>
+      <summary>Advanced options</summary>
+      <div class="advanced-inner">
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="extraction_passes">
+              Extraction passes
+              <span class="label-hint">More passes = higher recall, slower &amp; costlier</span>
+            </label>
+            <div class="slider-row">
+              <span class="slider-label">1 — Fast</span>
+              <input type="range" id="extraction_passes" name="extraction_passes"
+                     min="1" max="5" value="1" step="1"
+                     oninput="document.getElementById('passes-value').textContent = this.value">
+              <span class="slider-label">5 — Thorough</span>
+            </div>
+            <div class="slider-value-row">
+              <span id="passes-value">1</span> pass<span id="passes-plural"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="custom_prompt">
+              Custom extraction prompt
+              <span class="label-hint">Leave blank to use domain preset</span>
+            </label>
+            <textarea name="custom_prompt" id="custom_prompt" rows="3"
+                      placeholder="e.g. Check for income thresholds, filing deadlines, penalty amounts."></textarea>
+          </div>
+        </div>
       </div>
     </details>
 
     <div class="form-actions">
-      <button type="submit" class="btn-primary">Extract &amp; Compare</button>
+      <button type="submit" class="btn-primary">Extract &amp; Compare →</button>
     </div>
 
   </form>
@@ -184,10 +187,34 @@ flowchart LR
   mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
 </script>
 <script>
-function toggleRequired(fileInputId, demoValue) {
-  const fileInput = document.getElementById(fileInputId);
-  fileInput.required = !demoValue;
-}
+// Demo chips
+document.querySelectorAll('.demo-chip').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var slot = this.dataset.slot;
+    var key = this.dataset.key;
+    document.getElementById(slot + '_demo').value = key;
+    document.getElementById(slot + '_file').value = '';
+    document.querySelectorAll('.demo-chip[data-slot="' + slot + '"]').forEach(function(c) {
+      c.classList.remove('active');
+    });
+    this.classList.add('active');
+  });
+});
+
+// Clear demo selection when a file is picked
+['policy_file', 'implementation_file'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', function() {
+    if (this.files.length > 0) {
+      var slot = id.replace('_file', '');
+      document.getElementById(slot + '_demo').value = '';
+      document.querySelectorAll('.demo-chip[data-slot="' + slot + '"]').forEach(function(c) {
+        c.classList.remove('active');
+      });
+    }
+  });
+});
+
+// Extraction passes plural
 document.getElementById('extraction_passes').addEventListener('input', function() {
   document.getElementById('passes-plural').textContent = this.value === '1' ? '' : 'es';
 });
