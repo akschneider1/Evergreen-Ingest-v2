@@ -11,12 +11,32 @@
   <div class="header-inner">
     <a href="/" class="logo">Evergreen Ingest</a>
     <nav class="header-nav">
+      <a href="/comparisons">History</a>
       <a href="/compare/{{ comparison.comparison_id }}">← Back to Compare</a>
     </nav>
   </div>
 </header>
 
+<nav class="chapter-nav no-print">
+  <a href="/" class="chapter-step chapter-done">Ingest</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-done">Extract</span>
+  <span class="chapter-sep">›</span>
+  <a href="/compare/{{ comparison.comparison_id }}" class="chapter-step chapter-done">Review</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-done">Validate</span>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-active">Report</span>
+</nav>
+
 <main class="report-page">
+  <nav class="breadcrumb no-print">
+    <a href="/">Home</a><span class="bc-sep">/</span>
+    <a href="/comparisons">History</a><span class="bc-sep">/</span>
+    <a href="/compare/{{ comparison.comparison_id }}">{{ meta.display_name or (meta.domain | title) }}</a><span class="bc-sep">/</span>
+    <span class="bc-current">Report</span>
+  </nav>
+
   <h1>Drift Report</h1>
 
   <div class="report-meta">
@@ -130,11 +150,21 @@
     {% endif %}
   </section>
 
+  {% if progress.percent < 100 and progress.actionable > 0 %}
+  <div class="report-pending-callout no-print">
+    {{ progress.actionable - progress.decided }} finding{% if (progress.actionable - progress.decided) != 1 %}s{% endif %} still pending review.
+    <a href="/compare/{{ comparison.comparison_id }}">Continue reviewing →</a>
+  </div>
+  {% endif %}
+
   <div class="report-actions no-print">
     <a href="/compare/{{ comparison.comparison_id }}/report.json" class="btn-secondary">
       Download JSON
     </a>
-    <button onclick="window.print()" class="btn-secondary">Print</button>
+    <a href="/compare/{{ comparison.comparison_id }}/report.csv" class="btn-secondary">
+      Download CSV
+    </a>
+    <button onclick="window.print()" class="btn-secondary">Print / PDF</button>
   </div>
 </main>
 

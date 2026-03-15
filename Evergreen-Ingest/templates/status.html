@@ -10,8 +10,23 @@
 <header>
   <div class="header-inner">
     <a href="/" class="logo">Evergreen Ingest</a>
+    <nav class="header-nav">
+      <a href="/comparisons">History</a>
+    </nav>
   </div>
 </header>
+
+<nav class="chapter-nav">
+  <a href="/" class="chapter-step chapter-done">Ingest</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-active">Extract</span>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-future">Review</span>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-future">Validate</span>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-future">Report</span>
+</nav>
 
 <main class="status-page">
   <div class="status-card" id="status-card">
@@ -50,6 +65,7 @@
       </div>
 
       <p class="status-description" id="status-description">Starting up…</p>
+      <p class="status-elapsed" id="elapsed-display"></p>
 
       <dl class="meta-list">
         <dt>Policy</dt><dd>{{ meta.policy_filename }}</dd>
@@ -105,6 +121,14 @@ function updateLogs(logs) {
 }
 
 let startedAt = Date.now();
+
+setInterval(function() {
+  var s = Math.round((Date.now() - startedAt) / 1000);
+  var el = document.getElementById('elapsed-display');
+  if (el && s > 2) {
+    el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' elapsed';
+  }
+}, 1000);
 
 async function poll() {
   // Client-side timeout guard

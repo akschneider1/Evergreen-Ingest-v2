@@ -11,6 +11,7 @@
   <div class="header-inner">
     <a href="/" class="logo">Evergreen Ingest</a>
     <nav class="header-nav">
+      <a href="/comparisons">History</a>
       <a href="/compare/{{ comparison_id }}">&larr; All Parameters</a>
       &nbsp;&middot;&nbsp;
       <a href="/compare/{{ comparison_id }}/report">Report</a>
@@ -18,9 +19,32 @@
   </div>
 </header>
 
+<nav class="chapter-nav">
+  <a href="/" class="chapter-step chapter-done">Ingest</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-done">Extract</span>
+  <span class="chapter-sep">›</span>
+  <a href="/compare/{{ comparison_id }}" class="chapter-step chapter-done">Review</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-active">Validate</span>
+  <span class="chapter-sep">›</span>
+  <a href="/compare/{{ comparison_id }}/report" class="chapter-step chapter-done">Report</a>
+</nav>
+
 <main class="detail-page">
 
-  <!-- Breadcrumb nav: prev / position / next -->
+  <nav class="breadcrumb">
+    <a href="/">Home</a><span class="bc-sep">/</span>
+    <a href="/comparisons">History</a><span class="bc-sep">/</span>
+    <a href="/compare/{{ comparison_id }}">{{ meta.display_name or (meta.domain | title) }}</a><span class="bc-sep">/</span>
+    {% if actionable_position %}
+    <span class="bc-current">Parameter {{ actionable_position }} of {{ actionable_total }}</span>
+    {% else %}
+    <span class="bc-current">Parameter {{ param.index + 1 }}</span>
+    {% endif %}
+  </nav>
+
+  <!-- Prev / position / next -->
   <div class="detail-nav">
     {% if prev_idx is not none %}
     <a href="/compare/{{ comparison_id }}/param/{{ prev_idx }}" class="detail-nav-btn" title="Previous finding (left arrow)">&larr; Prev</a>
@@ -29,6 +53,9 @@
     {% endif %}
 
     <div class="detail-nav-center">
+      {% if actionable_position %}
+      <span class="detail-nav-pos">{{ actionable_position }} / {{ actionable_total }}</span>
+      {% endif %}
       <span class="status-badge status-{{ param.status }}">{{ param.status }}</span>
       <span class="detail-nav-class">{{ param.extraction_class }}</span>
       {% if param.drifted_attributes %}

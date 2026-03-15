@@ -7,6 +7,8 @@ and the browser polls /compare/{id}/status until ready.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import logging
 import os
@@ -217,6 +219,45 @@ def _run_pipeline(
 # Routes
 # ---------------------------------------------------------------------------
 
+@app.get("/comparisons", response_class=HTMLResponse)
+async def history(request: Request):
+    """List all prior comparisons, newest first."""
+    entries = []
+    for meta_path in sorted(
+        (OUTPUT_DIR / "comparisons").glob("*/meta.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    ):
+        try:
+            with open(meta_path) as f:
+                meta = json.load(f)
+        except Exception:
+            continue
+
+        # Attach summary counts if comparison is ready
+        summary = None
+        comp_path = meta_path.parent / "comparison.json"
+        if comp_path.exists():
+            try:
+                with open(comp_path) as f:
+                    summary = json.load(f).get("summary")
+            except Exception:
+                pass
+
+        # Derive a readable display name
+        policy_stem = Path(meta.get("policy_filename", "policy")).stem
+        impl_stem = Path(meta.get("implementation_filename", "implementation")).stem
+        date_str = (meta.get("created_at", "") or "")[:10]
+        meta["display_name"] = f"{meta.get('domain', '').title()}: {policy_stem} vs {impl_stem}"
+        meta["display_date"] = date_str
+        meta["summary"] = summary
+        entries.append(meta)
+
+    return templates.TemplateResponse(
+        "history.html", {"request": request, "entries": entries}
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(
@@ -298,6 +339,12 @@ async def upload(
     if model not in ALLOWED_MODELS:
         model = "gpt-4o-mini"
 
+    # Derive a human-readable display name for breadcrumbs and history
+    policy_stem = Path(policy_name).stem
+    impl_stem = Path(impl_name).stem
+    date_str = datetime.now(timezone.utc).strftime("%b %-d")
+    display_name = f"{domain.title()}: {policy_stem} vs {impl_stem} — {date_str}"
+
     # Write initial meta (status: pending)
     meta = {
         "comparison_id": comparison_id,
@@ -311,6 +358,7 @@ async def upload(
         "policy_path": str(policy_path.relative_to(BASE_DIR)),
         "implementation_path": str(impl_path.relative_to(BASE_DIR)),
         "extraction_passes": max(1, min(5, extraction_passes)),
+        "display_name": display_name,
         "error": None,
     }
     _write_meta(comparison_id, meta)
@@ -432,10 +480,12 @@ async def param_detail(request: Request, comparison_id: str, index: int):
     # Build prev/next navigation indices, skipping matched
     actionable = [p["index"] for p in params if p["status"] != "matched"]
     prev_idx = next_idx = None
+    actionable_position = None
     if index in actionable:
         pos = actionable.index(index)
         prev_idx = actionable[pos - 1] if pos > 0 else None
         next_idx = actionable[pos + 1] if pos < len(actionable) - 1 else None
+        actionable_position = pos + 1
 
     return templates.TemplateResponse(
         "detail.html",
@@ -448,6 +498,8 @@ async def param_detail(request: Request, comparison_id: str, index: int):
             "prev_idx": prev_idx,
             "next_idx": next_idx,
             "comparison_id": comparison_id,
+            "actionable_position": actionable_position,
+            "actionable_total": len(actionable),
         },
     )
 
@@ -516,6 +568,45 @@ async def report(request: Request, comparison_id: str):
             "actionable_params": actionable_params,
             "progress": progress,
         },
+    )
+
+
+@app.get("/compare/{comparison_id}/report.csv")
+async def report_csv(comparison_id: str):
+    comparison = compare_module.load_comparison(comparison_id, OUTPUT_DIR)
+    state = validate_module.load_state(comparison_id, OUTPUT_DIR)
+
+    output = io.StringIO()
+    fieldnames = [
+        "index", "extraction_class", "status",
+        "policy_text", "policy_value",
+        "impl_text", "impl_value",
+        "drifted_keys", "decision", "note", "decided_at",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for p in comparison["params"]:
+        dec = validate_module.get_decision(state, p["index"])
+        writer.writerow({
+            "index": p["index"] + 1,
+            "extraction_class": p["extraction_class"],
+            "status": p["status"],
+            "policy_text": p["policy"]["extraction_text"] if p["policy"] else "",
+            "policy_value": (p["policy"]["attributes"] or {}).get("value", "") if p["policy"] else "",
+            "impl_text": p["implementation"]["extraction_text"] if p["implementation"] else "",
+            "impl_value": (p["implementation"]["attributes"] or {}).get("value", "") if p["implementation"] else "",
+            "drifted_keys": ", ".join(p.get("drifted_attributes") or []),
+            "decision": dec["decision"] if dec else "",
+            "note": dec["note"] if dec else "",
+            "decided_at": dec["decided_at"] if dec else "",
+        })
+
+    from fastapi.responses import Response
+    filename = f"drift-report-{comparison_id}.csv"
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

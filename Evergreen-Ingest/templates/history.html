@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparisons — Evergreen Ingest</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+    <span class="tagline">Close the gap between policy intent and implementation in the AI era.</span>
+    <nav class="header-nav">
+      <a href="/comparisons" style="color:white;">History</a>
+      <a href="/">New comparison</a>
+    </nav>
+  </div>
+</header>
+
+<main class="history-page">
+  <div class="history-header">
+    <h1>Comparisons</h1>
+    <a href="/" class="btn-primary">+ New comparison</a>
+  </div>
+
+  {% if not entries %}
+  <div class="history-empty">
+    <p>No comparisons yet.</p>
+    <a href="/" class="btn-primary">Start your first comparison →</a>
+  </div>
+  {% else %}
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th>Comparison</th>
+        <th>Domain</th>
+        <th>Model</th>
+        <th>Date</th>
+        <th>Results</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for e in entries %}
+      <tr class="history-row history-row-{{ e.status }}">
+        <td class="history-name">
+          <div class="history-name-primary">{{ e.display_name }}</div>
+          <div class="history-name-sub">{{ e.policy_filename }} · {{ e.implementation_filename }}</div>
+        </td>
+        <td><span class="history-domain">{{ e.domain | title }}</span></td>
+        <td class="history-model">{{ e.model }}</td>
+        <td class="history-date">{{ e.display_date }}</td>
+        <td class="history-counts">
+          {% if e.summary %}
+            {% if e.summary.drifted %}
+            <span class="count-badge count-drifted" title="Drifted">{{ e.summary.drifted }}D</span>
+            {% endif %}
+            {% if e.summary.missing %}
+            <span class="count-badge count-missing" title="Missing">{{ e.summary.missing }}M</span>
+            {% endif %}
+            {% if e.summary.extra %}
+            <span class="count-badge count-extra" title="Extra">{{ e.summary.extra }}X</span>
+            {% endif %}
+            {% if e.summary.matched %}
+            <span class="count-badge count-matched" title="Matched">{{ e.summary.matched }}✓</span>
+            {% endif %}
+          {% else %}
+            <span class="history-no-summary">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if e.status == "ready" %}
+            <span class="status-chip status-chip-ready">Ready</span>
+          {% elif e.status == "error" %}
+            <span class="status-chip status-chip-error" title="{{ e.error }}">Error</span>
+          {% else %}
+            <span class="status-chip status-chip-pending">{{ e.status | title }}</span>
+          {% endif %}
+        </td>
+        <td class="history-actions">
+          {% if e.status == "ready" %}
+            <a href="/compare/{{ e.comparison_id }}" class="btn-small">Review</a>
+            <a href="/compare/{{ e.comparison_id }}/report" class="btn-small btn-small-secondary">Report</a>
+          {% elif e.status == "error" %}
+            <a href="/compare/{{ e.comparison_id }}/status" class="btn-small btn-small-secondary">Details</a>
+          {% else %}
+            <a href="/compare/{{ e.comparison_id }}/status" class="btn-small">View</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</main>
+
+<footer>
+  <p>Evergreen Ingest · Proof of concept · Source grounding powered by
+  <a href="https://github.com/google-deepmind/langextract" target="_blank">langextract</a></p>
+</footer>
+</body>
+</html>
