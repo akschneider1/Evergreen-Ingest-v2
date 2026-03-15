@@ -1,4 +1,4 @@
-model_id: gemini-2.5-flash
+model_id: gpt-4o-mini
 extraction_passes: 3
 max_workers: 4
 max_output_tokens: 8192  # Increase if seeing truncated JSON errors

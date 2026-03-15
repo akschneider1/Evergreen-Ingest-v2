@@ -97,8 +97,8 @@ def _write_meta(comparison_id: str, meta: dict) -> None:
 def _friendly_error(exc: Exception) -> str:
     msg = str(exc)
     low = msg.lower()
-    if "api_key" in low or "api key" in low or "authentication" in low or "unauthenticated" in low:
-        return "API key error — check that GOOGLE_API_KEY is set correctly in your environment."
+    if "api_key" in low or "api key" in low or "authentication" in low or "unauthenticated" in low or "incorrect api key" in low:
+        return "API key error — check that OPENAI_API_KEY (or GOOGLE_API_KEY) is set correctly in your environment."
     if "quota" in low or "resource_exhausted" in low:
         return "API quota exceeded. Wait a moment and try again, or check your Google Cloud quota."
     if "rate" in low and ("limit" in low or "429" in msg):

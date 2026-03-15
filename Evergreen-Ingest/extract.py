@@ -93,7 +93,11 @@ def extract_document(
         config.get("model_id", "gemini-2.5-flash"),
     )
 
-    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("LANGEXTRACT_API_KEY")
+    model = config.get("model_id", "gpt-4o-mini")
+    if model.startswith("gpt"):
+        api_key = os.environ.get("OPENAI_API_KEY")
+    else:
+        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("LANGEXTRACT_API_KEY")
     result: lx.data.AnnotatedDocument = lx.extract(
         text_or_documents=document_text,
         prompt_description=domain.prompt,
