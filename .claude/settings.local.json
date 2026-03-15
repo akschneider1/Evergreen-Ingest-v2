@@ -21,7 +21,8 @@
       "Bash(python:*)",
       "Bash(pip install:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
