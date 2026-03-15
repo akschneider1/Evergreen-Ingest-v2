@@ -302,6 +302,7 @@ DEMO_FILES = {
 
 
 ALLOWED_MODELS = {
+    "claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-6",
     "gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1",
     "gemini-2.5-flash", "gemini-2.0-flash",
 }
@@ -312,7 +313,7 @@ async def upload(
     policy_file: UploadFile = Form(...),
     implementation_file: UploadFile = Form(...),
     domain: str = Form(...),
-    model: str = Form("gpt-4o-mini"),
+    model: str = Form("claude-sonnet-4-6"),
     custom_prompt: str = Form(""),
     policy_demo: str = Form(""),
     implementation_demo: str = Form(""),
@@ -364,7 +365,7 @@ async def upload(
 
     # Validate model
     if model not in ALLOWED_MODELS:
-        model = "gpt-4o-mini"
+        model = "claude-sonnet-4-6"
 
     # Derive a human-readable display name for breadcrumbs and history
     policy_stem = Path(policy_name).stem

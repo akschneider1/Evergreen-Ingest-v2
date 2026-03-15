@@ -148,23 +148,38 @@ def extract_document(
 
     if model.startswith("gpt"):
         api_key = os.environ.get("OPENAI_API_KEY")
+    elif model.startswith("claude"):
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
     else:
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("LANGEXTRACT_API_KEY")
 
     if not api_key:
+        key_var = (
+            "ANTHROPIC_API_KEY" if model.startswith("claude")
+            else "OPENAI_API_KEY" if model.startswith("gpt")
+            else "GOOGLE_API_KEY"
+        )
         raise RuntimeError(
             f"No API key found for model '{model}'. "
-            "Set OPENAI_API_KEY (or GOOGLE_API_KEY) in your environment or .env file."
+            f"Set {key_var} in your environment or .env file."
         )
 
     extract_timeout = config.get("api_timeout", 90)
 
-    # For OpenAI models, pre-build the provider with an explicit HTTP timeout.
-    # langextract creates openai.OpenAI() with no timeout (defaults to 600s)
-    # and silently ignores 'timeout' in language_model_params.
+    # Pre-build the provider with an explicit HTTP timeout for OpenAI and Anthropic.
+    # langextract's built-in providers use no timeout by default.
     lx_model = None
     if model.startswith("gpt"):
         lx_model = _TimedOpenAILanguageModel(
+            model_id=model,
+            api_key=api_key,
+            max_workers=config.get("max_workers", 10),
+            client_timeout=float(extract_timeout),
+            max_output_tokens=config.get("max_output_tokens", 2048),
+        )
+    elif model.startswith("claude"):
+        from anthropic_provider import AnthropicLanguageModel
+        lx_model = AnthropicLanguageModel(
             model_id=model,
             api_key=api_key,
             max_workers=config.get("max_workers", 10),
