@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deploy — {{ meta.display_name or (meta.domain | title) }} — Evergreen Ingest</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="no-print">
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+    <nav class="header-nav">
+      <a href="/comparisons">History</a>
+      <a href="/compare/{{ comparison.comparison_id }}/report">← Report</a>
+    </nav>
+  </div>
+</header>
+
+<nav class="chapter-nav no-print">
+  <a href="/" class="chapter-step chapter-done">Ingest</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-done">Extract</span>
+  <span class="chapter-sep">›</span>
+  <a href="/compare/{{ comparison.comparison_id }}" class="chapter-step chapter-done">Review</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-done">Validate</span>
+  <span class="chapter-sep">›</span>
+  <a href="/compare/{{ comparison.comparison_id }}/report" class="chapter-step chapter-done">Report</a>
+  <span class="chapter-sep">›</span>
+  <span class="chapter-step chapter-active">Deploy</span>
+</nav>
+
+<main class="deploy-page">
+  <nav class="breadcrumb no-print">
+    <a href="/">Home</a><span class="bc-sep">/</span>
+    <a href="/comparisons">History</a><span class="bc-sep">/</span>
+    <a href="/compare/{{ comparison.comparison_id }}/report">{{ meta.display_name or (meta.domain | title) }}</a><span class="bc-sep">/</span>
+    <span class="bc-current">Deploy</span>
+  </nav>
+
+  <h1>Deploy Validated Data</h1>
+  <p class="deploy-intro">
+    Your validated parameters are ready. Send them downstream as
+    eval ground truth or as policy-grounded chunks for your knowledge base.
+  </p>
+
+  <!-- Summary strip -->
+  <div class="deploy-summary-strip">
+    <div class="dss-item">
+      <span class="dss-num">{{ counts.confirmed }}</span>
+      <span class="dss-lbl">Confirmed</span>
+    </div>
+    <div class="dss-item">
+      <span class="dss-num">{{ counts.edited }}</span>
+      <span class="dss-lbl">Edited</span>
+    </div>
+    <div class="dss-item">
+      <span class="dss-num">{{ counts.matched }}</span>
+      <span class="dss-lbl">Matched</span>
+    </div>
+    <div class="dss-item dss-item-muted">
+      <span class="dss-num">{{ counts.pending }}</span>
+      <span class="dss-lbl">Pending review</span>
+    </div>
+    <div class="dss-item dss-item-muted">
+      <span class="dss-num">{{ counts.rejected }}</span>
+      <span class="dss-lbl">Rejected</span>
+    </div>
+  </div>
+
+  {% if counts.pending > 0 %}
+  <div class="deploy-pending-notice">
+    {{ counts.pending }} finding{% if counts.pending != 1 %}s{% endif %} still pending review.
+    <a href="/compare/{{ comparison.comparison_id }}">Finish reviewing →</a>
+    You can still deploy with the decisions recorded so far.
+  </div>
+  {% endif %}
+
+  <!-- Two destination cards -->
+  <div class="deploy-cards">
+
+    <!-- Card 1: Eval Pipeline -->
+    <div class="deploy-card" id="card-evals">
+      <div class="dc-header-row">
+        <div class="dc-icon dc-icon-evals">&#x2713;</div>
+        <div>
+          <h2 class="dc-title">Evaluation Pipeline</h2>
+          <p class="dc-platforms">Evergreen Evals &nbsp;·&nbsp; Langfuse &nbsp;·&nbsp; promptfoo</p>
+        </div>
+      </div>
+
+      <p class="dc-desc">
+        Confirmed and edited parameters become test cases — a known-correct policy value,
+        a known-wrong implementation value, and the source sentence that proves it.
+        Every eval failure traces back to the exact policy text.
+      </p>
+
+      <div class="dc-what-strip">
+        <span class="dc-what-num">{{ counts.confirmed + counts.edited }}</span>
+        <span class="dc-what-lbl">parameters → test cases</span>
+        <span class="dc-what-detail">(confirmed + expert-edited)</span>
+      </div>
+
+      <div class="dc-form" id="form-evals">
+        <div class="dc-field-row">
+          <label class="dc-label" for="evals-endpoint">Dataset endpoint</label>
+          <input type="url" id="evals-endpoint" class="dc-input"
+                 value="https://cloud.langfuse.com/api/public/datasets"
+                 placeholder="https://cloud.langfuse.com/api/public/datasets">
+        </div>
+        <div class="dc-field-row">
+          <label class="dc-label" for="evals-key">API key</label>
+          <input type="password" id="evals-key" class="dc-input"
+                 placeholder="sk-…  (demo: any value)">
+        </div>
+        <div class="dc-field-row">
+          <label class="dc-label" for="evals-dataset">Dataset name</label>
+          <input type="text" id="evals-dataset" class="dc-input"
+                 value="{{ meta.domain | title }}: {{ meta.policy_filename }}"
+                 placeholder="e.g. Tax Policy 2026 Q1">
+        </div>
+      </div>
+
+      <div class="dc-actions">
+        <button class="btn-primary dc-push-btn" id="push-evals-btn"
+                onclick="push('evals')">
+          Push {{ counts.confirmed + counts.edited }} test cases →
+        </button>
+        <a href="/compare/{{ comparison.comparison_id }}/report.jsonl"
+           class="btn-secondary">Download JSONL</a>
+      </div>
+
+      <div class="dc-status" id="status-evals" style="display:none;"></div>
+    </div>
+
+    <!-- Card 2: Vector Store / Knowledge Base -->
+    <div class="deploy-card" id="card-vectorstore">
+      <div class="dc-header-row">
+        <div class="dc-icon dc-icon-vectorstore">&#x25A6;</div>
+        <div>
+          <h2 class="dc-title">Knowledge Base</h2>
+          <p class="dc-platforms">Pinecone &nbsp;·&nbsp; Qdrant &nbsp;·&nbsp; pgvector &nbsp;·&nbsp; any embeddings endpoint</p>
+        </div>
+      </div>
+
+      <p class="dc-desc">
+        Validated policy passages embed with full lineage metadata — domain, extraction class,
+        character positions, and decision status. Filter retrievals to
+        <code>decision == confirmed</code> to serve only SME-verified content.
+        Character positions enable context-window expansion at retrieval time.
+      </p>
+
+      <div class="dc-what-strip">
+        <span class="dc-what-num">{{ counts.confirmed + counts.edited + counts.matched }}</span>
+        <span class="dc-what-lbl">chunks ready to embed</span>
+        <span class="dc-what-detail">(confirmed + edited + matched)</span>
+      </div>
+
+      <div class="dc-form" id="form-vectorstore">
+        <div class="dc-field-row">
+          <label class="dc-label" for="vs-endpoint">Upsert endpoint</label>
+          <input type="url" id="vs-endpoint" class="dc-input"
+                 value="https://api.pinecone.io/vectors/upsert"
+                 placeholder="https://api.pinecone.io/vectors/upsert">
+        </div>
+        <div class="dc-field-row">
+          <label class="dc-label" for="vs-key">API key</label>
+          <input type="password" id="vs-key" class="dc-input"
+                 placeholder="pc-…  (demo: any value)">
+        </div>
+        <div class="dc-field-row">
+          <label class="dc-label" for="vs-index">Index / namespace</label>
+          <input type="text" id="vs-index" class="dc-input"
+                 value="evergreen-{{ meta.domain }}"
+                 placeholder="e.g. evergreen-tax">
+        </div>
+      </div>
+
+      <div class="dc-actions">
+        <button class="btn-primary dc-push-btn" id="push-vs-btn"
+                onclick="push('vectorstore')">
+          Push {{ counts.confirmed + counts.edited + counts.matched }} chunks →
+        </button>
+        <a href="/compare/{{ comparison.comparison_id }}/report.jsonl"
+           class="btn-secondary">Download JSONL</a>
+      </div>
+
+      <div class="dc-status" id="status-vectorstore" style="display:none;"></div>
+    </div>
+
+  </div><!-- /.deploy-cards -->
+
+  <p class="deploy-demo-note">
+    <strong>Demo mode.</strong>
+    Push buttons simulate the API call and return real record counts from this comparison.
+    To connect a live endpoint, replace the URL and API key above.
+    The JSONL download works today for any platform that accepts
+    <a href="https://en.wikipedia.org/wiki/JSON_streaming#Newline-delimited_JSON" target="_blank">newline-delimited JSON</a>.
+  </p>
+
+</main>
+
+<footer class="no-print">
+  <p>Evergreen Ingest &nbsp;·&nbsp; Every finding grounded to exact source text.</p>
+</footer>
+
+<script>
+var COMPARISON_ID = '{{ comparison.comparison_id }}';
+
+function push(dest) {
+  var btn = document.getElementById('push-' + (dest === 'vectorstore' ? 'vs' : dest) + '-btn');
+  var statusEl = document.getElementById('status-' + dest);
+
+  btn.disabled = true;
+  btn.textContent = 'Pushing…';
+  statusEl.style.display = 'none';
+
+  // Read config from form fields
+  var endpoint = dest === 'evals'
+    ? document.getElementById('evals-endpoint').value
+    : document.getElementById('vs-endpoint').value;
+  var key = dest === 'evals'
+    ? document.getElementById('evals-key').value
+    : document.getElementById('vs-key').value;
+
+  var formData = new FormData();
+  formData.append('endpoint_url', endpoint);
+  formData.append('api_key', key || 'demo');
+
+  fetch('/compare/' + COMPARISON_ID + '/push/' + dest, {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    btn.disabled = false;
+    if (dest === 'evals') {
+      btn.textContent = 'Push ' + data.records_pushed + ' test cases →';
+      showStatus('evals', 'success',
+        '&#x2713; ' + data.records_pushed + ' test cases pushed to ' + truncate(endpoint, 40) +
+        '<br><small>Dataset: ' + (document.getElementById('evals-dataset').value || 'unnamed') + '</small>');
+    } else {
+      btn.textContent = 'Push ' + data.chunks_indexed + ' chunks →';
+      showStatus('vectorstore', 'success',
+        '&#x2713; ' + data.chunks_indexed + ' chunks indexed to ' + truncate(endpoint, 40) +
+        '<br><small>Index: ' + (document.getElementById('vs-index').value || 'unnamed') + '</small>');
+    }
+  })
+  .catch(function(err) {
+    btn.disabled = false;
+    btn.textContent = btn.textContent.replace('Pushing…', 'Retry →');
+    showStatus(dest, 'error', '&#x2715; Push failed: ' + err.message);
+  });
+}
+
+function showStatus(dest, type, html) {
+  var el = document.getElementById('status-' + dest);
+  el.className = 'dc-status dc-status-' + type;
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+</script>
+</body>
+</html>

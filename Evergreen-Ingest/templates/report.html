@@ -27,6 +27,8 @@
   <span class="chapter-step chapter-done">Validate</span>
   <span class="chapter-sep">›</span>
   <span class="chapter-step chapter-active">Report</span>
+  <span class="chapter-sep">›</span>
+  <a href="/compare/{{ comparison.comparison_id }}/deploy" class="chapter-step chapter-future">Deploy</a>
 </nav>
 
 <main class="report-page">
@@ -158,6 +160,9 @@
   {% endif %}
 
   <div class="report-actions no-print">
+    <a href="/compare/{{ comparison.comparison_id }}/deploy" class="btn-primary">
+      Deploy →
+    </a>
     <a href="/compare/{{ comparison.comparison_id }}/report.jsonl" class="btn-secondary">
       Download JSONL <span class="btn-hint">vector store / evals</span>
     </a>

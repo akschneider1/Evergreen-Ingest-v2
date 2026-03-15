@@ -647,6 +647,93 @@ async def report_csv(comparison_id: str):
     )
 
 
+@app.get("/compare/{comparison_id}/deploy", response_class=HTMLResponse)
+async def deploy(request: Request, comparison_id: str):
+    meta = _read_meta(comparison_id)
+    comparison = compare_module.load_comparison(comparison_id, OUTPUT_DIR)
+    state = validate_module.load_state(comparison_id, OUTPUT_DIR)
+
+    counts = {"confirmed": 0, "edited": 0, "rejected": 0, "matched": 0, "pending": 0}
+    for p in comparison["params"]:
+        dec = validate_module.get_decision(state, p["index"])
+        if p["status"] == "matched":
+            counts["matched"] += 1
+        elif dec:
+            counts[dec["decision"]] = counts.get(dec["decision"], 0) + 1
+        else:
+            counts["pending"] += 1
+
+    return templates.TemplateResponse(
+        "deploy.html",
+        {
+            "request": request,
+            "meta": meta,
+            "comparison": comparison,
+            "counts": counts,
+        },
+    )
+
+
+@app.post("/compare/{comparison_id}/push/evals")
+async def push_evals(
+    comparison_id: str,
+    endpoint_url: str = Form(""),
+    api_key: str = Form(""),
+):
+    """
+    Placeholder push to an eval platform (Langfuse dataset / Evergreen Evals / promptfoo).
+    Returns real record counts from this comparison. In production: POST to the
+    configured endpoint with the canonical JSONL records as the request body.
+    """
+    _read_meta(comparison_id)
+    comparison = compare_module.load_comparison(comparison_id, OUTPUT_DIR)
+    state = validate_module.load_state(comparison_id, OUTPUT_DIR)
+
+    records = [
+        p for p in comparison["params"]
+        if (lambda d: d and d["decision"] in ("confirmed", "edited"))(
+            validate_module.get_decision(state, p["index"])
+        )
+    ]
+    return JSONResponse({
+        "status": "ok",
+        "mode": "demo",
+        "records_pushed": len(records),
+        "endpoint": endpoint_url or "(not set)",
+        "note": "Demo mode — configure a live endpoint to push to your eval platform.",
+    })
+
+
+@app.post("/compare/{comparison_id}/push/vectorstore")
+async def push_vectorstore(
+    comparison_id: str,
+    endpoint_url: str = Form(""),
+    api_key: str = Form(""),
+):
+    """
+    Placeholder push to a vector store (Pinecone, Qdrant, pgvector, …).
+    Returns real record counts from this comparison. In production: embed
+    policy_text and upsert each record with its full metadata payload.
+    """
+    _read_meta(comparison_id)
+    comparison = compare_module.load_comparison(comparison_id, OUTPUT_DIR)
+    state = validate_module.load_state(comparison_id, OUTPUT_DIR)
+
+    chunks = [
+        p for p in comparison["params"]
+        if p["status"] == "matched" or (
+            lambda d: d and d["decision"] in ("confirmed", "edited")
+        )(validate_module.get_decision(state, p["index"]))
+    ]
+    return JSONResponse({
+        "status": "ok",
+        "mode": "demo",
+        "chunks_indexed": len(chunks),
+        "endpoint": endpoint_url or "(not set)",
+        "note": "Demo mode — configure a live endpoint to upsert to your vector store.",
+    })
+
+
 @app.get("/compare/{comparison_id}/report.jsonl")
 async def report_jsonl(comparison_id: str):
     """
