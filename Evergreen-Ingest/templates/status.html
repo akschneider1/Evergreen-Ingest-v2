@@ -38,14 +38,9 @@
           <span class="tracker-label">Queued</span>
         </div>
         <div class="tracker-line"></div>
-        <div class="tracker-step" id="step-extracting_policy">
+        <div class="tracker-step" id="step-extracting">
           <div class="tracker-dot"></div>
-          <span class="tracker-label">Extracting policy</span>
-        </div>
-        <div class="tracker-line"></div>
-        <div class="tracker-step" id="step-extracting_implementation">
-          <div class="tracker-dot"></div>
-          <span class="tracker-label">Extracting implementation</span>
+          <span class="tracker-label">Extracting</span>
         </div>
         <div class="tracker-line"></div>
         <div class="tracker-step" id="step-comparing">
@@ -83,13 +78,12 @@ const COMPARISON_ID = "{{ comparison_id }}";
 const POLL_INTERVAL_MS = 3000;
 const CLIENT_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes
 
-const STEP_ORDER = ["pending", "extracting_policy", "extracting_implementation", "comparing"];
+const STEP_ORDER = ["pending", "extracting", "comparing"];
 
 const STEP_DESCRIPTIONS = {
-  pending:                    "Queued for extraction…",
-  extracting_policy:          "Running structured extraction on the policy document. This usually takes 30–90 seconds.",
-  extracting_implementation:  "Running structured extraction on the implementation document.",
-  comparing:                  "Extraction complete. Matching and categorising parameters…",
+  pending:    "Queued for extraction…",
+  extracting: "Extracting both documents in parallel. First run ~30–60 s; cached runs are instant.",
+  comparing:  "Extraction complete. Matching and categorising parameters…",
 };
 
 function setTrackerState(status) {

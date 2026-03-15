@@ -2,7 +2,8 @@ model_id: gpt-4o-mini
 extraction_passes: 1     # 3 passes triples API calls; 1 is sufficient for demo
 max_workers: 1           # Serial calls avoid rate-limit bursts on starter-tier keys
 max_output_tokens: 2048  # Actual usage is ~200-800 tokens/call; 8192 was oversized
-max_char_buffer: 3000    # Smaller chunks = shorter completions = less timeout risk
+max_char_buffer: 6000    # 6000 covers all demo fixtures in a single chunk; extract.py also
+                         # dynamically expands this to len(doc)+1 so any doc fits in 1 chunk
 api_timeout: 60          # Per-call timeout in seconds (OpenAI default is 600)
 domains:
   - tax

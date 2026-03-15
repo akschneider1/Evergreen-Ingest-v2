@@ -144,39 +144,50 @@ def _run_pipeline(
         _write_meta(comparison_id, meta)
 
     try:
-        meta["status"] = "extracting_policy"
-        _write_meta(comparison_id, meta)
         passes = meta.get("extraction_passes", CONFIG.get("extraction_passes", 1))
         model_id = meta.get("model", CONFIG.get("model_id", "gpt-4o-mini"))
-        _log(f"Extracting parameters from policy document ({policy_path.name})… (model={model_id}, {passes} pass{'es' if passes != 1 else ''})")
 
-        policy_jsonl, _, policy_doc = extract_module.extract_document(
-            source_path=policy_path,
-            domain_name=domain,
-            output_dir=OUTPUT_DIR,
-            comparison_id=comparison_id,
-            doc_slot="policy",
-            extraction_passes=passes,
-            model_id=model_id,
-        )
-        n_policy = len(policy_doc.extractions or [])
-        _log(f"Policy extraction complete — {n_policy} parameter(s) found.")
-
-        meta["status"] = "extracting_implementation"
+        meta["status"] = "extracting"
         _write_meta(comparison_id, meta)
-        _log(f"Extracting parameters from implementation document ({impl_path.name})… (model={model_id}, {passes} pass{'es' if passes != 1 else ''})")
-
-        impl_jsonl, _, impl_doc = extract_module.extract_document(
-            source_path=impl_path,
-            domain_name=domain,
-            output_dir=OUTPUT_DIR,
-            comparison_id=comparison_id,
-            doc_slot="implementation",
-            extraction_passes=passes,
-            model_id=model_id,
+        _log(
+            f"Extracting both documents in parallel… "
+            f"(model={model_id}, {passes} pass{'es' if passes != 1 else ''})"
         )
+
+        # Run policy and implementation extractions concurrently — they are
+        # fully independent so there is no reason to serialize them.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as extraction_pool:
+            policy_future = extraction_pool.submit(
+                extract_module.extract_document,
+                source_path=policy_path,
+                domain_name=domain,
+                output_dir=OUTPUT_DIR,
+                comparison_id=comparison_id,
+                doc_slot="policy",
+                extraction_passes=passes,
+                model_id=model_id,
+            )
+            impl_future = extraction_pool.submit(
+                extract_module.extract_document,
+                source_path=impl_path,
+                domain_name=domain,
+                output_dir=OUTPUT_DIR,
+                comparison_id=comparison_id,
+                doc_slot="implementation",
+                extraction_passes=passes,
+                model_id=model_id,
+            )
+
+            # Collect results; re-raise any extraction exception on the main thread
+            policy_jsonl, _, policy_doc = policy_future.result()
+            impl_jsonl, _, impl_doc = impl_future.result()
+
+        n_policy = len(policy_doc.extractions or [])
         n_impl = len(impl_doc.extractions or [])
-        _log(f"Implementation extraction complete — {n_impl} parameter(s) found.")
+        _log(
+            f"Extractions complete — policy: {n_policy} parameter(s), "
+            f"implementation: {n_impl} parameter(s)."
+        )
 
         meta["status"] = "comparing"
         _write_meta(comparison_id, meta)
