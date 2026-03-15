@@ -84,16 +84,17 @@ def extract_document(
     viz_dir.mkdir(parents=True, exist_ok=True)
 
     document_text = read_document(source_path)
+    passes = extraction_passes if extraction_passes is not None else config.get("extraction_passes", 1)
+    model = config.get("model_id", "gpt-4o-mini")
     logger.info(
-        "Extracting %s/%s (%d chars) with domain=%s model=%s",
+        "Starting extraction %s/%s — %d chars, model=%s, passes=%d",
         comparison_id,
         doc_slot,
         len(document_text),
-        domain_name,
-        config.get("model_id", "gemini-2.5-flash"),
+        model,
+        passes,
     )
 
-    model = config.get("model_id", "gpt-4o-mini")
     if model.startswith("gpt"):
         api_key = os.environ.get("OPENAI_API_KEY")
     else:
@@ -102,17 +103,20 @@ def extract_document(
         text_or_documents=document_text,
         prompt_description=domain.prompt,
         examples=domain.examples,
-        model_id=config.get("model_id", "gemini-2.5-flash"),
-        extraction_passes=extraction_passes if extraction_passes is not None else config.get("extraction_passes", 3),
-        max_workers=config.get("max_workers", 4),
-        max_char_buffer=config.get("max_char_buffer", 6000),
+        model_id=model,
+        extraction_passes=passes,
+        max_workers=config.get("max_workers", 1),
+        max_char_buffer=config.get("max_char_buffer", 3000),
         show_progress=False,
         api_key=api_key,
         # Suppress per-chunk JSON parse errors (e.g. truncated responses hitting
         # output token limits) so the pipeline continues with partial results
         # rather than crashing entirely.
         resolver_params={"suppress_parse_errors": True},
-        language_model_params={"max_output_tokens": config.get("max_output_tokens", 8192)},
+        language_model_params={
+            "max_output_tokens": config.get("max_output_tokens", 2048),
+            "timeout": config.get("api_timeout", 60),
+        },
     )
 
     # Save JSONL (immutable source record)
