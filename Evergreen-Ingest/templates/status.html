@@ -77,11 +77,14 @@
         <dt>Domain</dt><dd>{{ meta.domain | title }}</dd>
       </dl>
 
-      <!-- Log dropdown -->
-      <details class="log-dropdown" id="log-section">
-        <summary>Show logs</summary>
+      <!-- Live log panel -->
+      <div class="log-panel" id="log-section">
+        <div class="log-panel-header">
+          <span class="log-panel-title">Live log</span>
+          <span class="log-live-dot" id="log-live-dot" title="Streaming"></span>
+        </div>
         <pre class="log-pre" id="log-body">Waiting for first log entry…</pre>
-      </details>
+      </div>
 
       <p class="refresh-note" id="timeout-note"></p>
     </div>
@@ -118,10 +121,18 @@ function setTrackerState(status) {
   });
 }
 
-function updateLogs(logs) {
+function updateLogs(logs, done) {
   if (!logs || logs.length === 0) return;
   const body = document.getElementById("log-body");
-  if (body) body.textContent = logs.join("\n");
+  if (!body) return;
+  body.textContent = logs.join("\n");
+  // Auto-scroll to the latest line
+  body.scrollTop = body.scrollHeight;
+  // Stop the live indicator when processing is finished
+  if (done) {
+    const dot = document.getElementById("log-live-dot");
+    if (dot) dot.classList.add("log-live-dot-done");
+  }
 }
 
 let startedAt = Date.now();
@@ -156,11 +167,13 @@ async function poll() {
   }
 
   if (data.status === "ready") {
+    updateLogs(data.logs || [], true);
     window.location.href = `/compare/${COMPARISON_ID}`;
     return;
   }
 
   if (data.status === "error") {
+    updateLogs(data.logs || [], true);
     showError(data.error || "An unknown error occurred.", data.logs || [], data.error_detail || "");
     return;
   }
@@ -169,7 +182,7 @@ async function poll() {
   setTrackerState(data.status);
   const desc = document.getElementById("status-description");
   if (desc) desc.textContent = STEP_DESCRIPTIONS[data.status] || "Working…";
-  updateLogs(data.logs || []);
+  updateLogs(data.logs || [], false);
 
   setTimeout(poll, POLL_INTERVAL_MS);
 }
@@ -190,7 +203,7 @@ function showError(msg, logs, detail) {
 // Seed initial state from server render
 setTrackerState("{{ meta.status }}");
 {% if meta.logs %}
-updateLogs({{ meta.logs | tojson }});
+updateLogs({{ meta.logs | tojson }}, {{ 'true' if meta.status in ('ready', 'error') else 'false' }});
 {% endif %}
 {% if meta.status == "error" %}
 showError({{ (meta.error or "An error occurred.") | tojson }}, {{ (meta.logs or []) | tojson }}, {{ (meta.error_detail or "") | tojson }});

@@ -740,6 +740,7 @@ details.advanced summary:hover { background: #f3f4f6; color: #374151; }
 }
 
 /* Log dropdown */
+/* Legacy — kept for error-log sections that still use <details> */
 .log-dropdown {
   margin-top: 1.25rem;
   border: 1px solid #e5e7eb;
@@ -755,6 +756,48 @@ details.advanced summary:hover { background: #f3f4f6; color: #374151; }
   background: #f9fafb;
 }
 .log-dropdown summary:hover { background: #f3f4f6; }
+
+/* Live log panel — always visible on the status page */
+.log-panel {
+  margin-top: 1.5rem;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.log-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+.log-panel-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #94a3b8;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+/* Pulsing green dot while live */
+.log-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: log-pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.log-live-dot-done {
+  background: #4b5563;
+  animation: none;
+}
+@keyframes log-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .log-pre {
   margin: 0;
   padding: 0.75rem;
@@ -762,7 +805,7 @@ details.advanced summary:hover { background: #f3f4f6; color: #374151; }
   line-height: 1.6;
   background: #1e1e2e;
   color: #cdd6f4;
-  max-height: 240px;
+  max-height: 300px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;

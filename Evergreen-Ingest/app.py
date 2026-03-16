@@ -36,6 +36,32 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+
+class _PipelineLogHandler(logging.Handler):
+    """Captures INFO+ log records from extraction modules into meta['logs'] in real time.
+
+    Installed on the 'extract' and 'anthropic_provider' loggers during a pipeline
+    run so the status page can display live progress without polling stdout.
+    """
+
+    def __init__(self, meta: dict, comparison_id: str) -> None:
+        super().__init__(level=logging.INFO)
+        self._meta = meta
+        self._comparison_id = comparison_id
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+            level_tag = record.levelname[0]  # I / W / E
+            msg = record.getMessage()
+            # Strip the comparison_id prefix that extract.py includes in messages
+            msg = msg.replace(self._comparison_id + "/", "")
+            entry = f"[{ts}] {level_tag} {record.name}: {msg}"
+            self._meta["logs"].append(entry)
+            _write_meta(self._comparison_id, self._meta)
+        except Exception:
+            pass
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -175,6 +201,15 @@ def _run_pipeline(
         meta["logs"].append(entry)
         _write_meta(comparison_id, meta)
 
+    # Attach live log handler so detailed extraction progress appears in the UI.
+    _live_handler = _PipelineLogHandler(meta, comparison_id)
+    _live_loggers = [
+        logging.getLogger("extract"),
+        logging.getLogger("anthropic_provider"),
+    ]
+    for _lgg in _live_loggers:
+        _lgg.addHandler(_live_handler)
+
     try:
         passes = meta.get("extraction_passes", CONFIG.get("extraction_passes", 1))
         model_id = meta.get("model", CONFIG.get("model_id", "gpt-4o-mini"))
@@ -240,6 +275,9 @@ def _run_pipeline(
         meta["error_detail"] = f"{type(exc).__name__}: {exc}"
         meta["logs"].append(f"[error] {type(exc).__name__}: {exc}")
         _write_meta(comparison_id, meta)
+    finally:
+        for _lgg in _live_loggers:
+            _lgg.removeHandler(_live_handler)
 
 
 # ---------------------------------------------------------------------------

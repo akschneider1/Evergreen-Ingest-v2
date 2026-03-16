@@ -102,13 +102,12 @@ class AnthropicLanguageModel(BaseLanguageModel):
             )
             output_text = response.content[0].text
 
-            logger.debug(
-                "Claude raw response (model=%s, input_tokens=%d, output_tokens=%d):\n%s",
-                self.model_id,
+            logger.info(
+                "Claude response: %d input tokens → %d output tokens",
                 response.usage.input_tokens,
                 response.usage.output_tokens,
-                output_text,
             )
+            logger.debug("Claude raw response:\n%s", output_text)
 
             # Guard: if Claude returned an empty or missing fence body, substitute
             # a valid empty-extractions response rather than letting the resolver
