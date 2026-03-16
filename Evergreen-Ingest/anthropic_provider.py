@@ -82,17 +82,10 @@ class AnthropicLanguageModel(BaseLanguageModel):
     _EMPTY_RESPONSE = '```json\n{"extractions": []}\n```'
 
     _SYSTEM_PROMPT = (
-        "You are a precise information extraction assistant. "
-        "You will be given a document and asked to extract structured parameters from it.\n\n"
-        "IMPORTANT RULES:\n"
-        "1. Always respond with a single ```json code fence containing a JSON object.\n"
-        "2. The JSON object MUST have an \"extractions\" key whose value is a list.\n"
-        "3. When no relevant parameters are found, respond with EXACTLY:\n"
-        "```json\n"
-        "{\"extractions\": []}\n"
-        "```\n"
-        "4. Never return an empty code fence. Never return plain text without a fence.\n"
-        "5. Do not include any explanation outside the code fence."
+        "You are a helpful assistant that responds in JSON format. "
+        "Always wrap your JSON response in a ```json code fence. "
+        'If there is nothing to extract, respond with ```json\n{"extractions": []}\n``` '
+        "— never return an empty code fence."
     )
 
     def _process_single_prompt(
