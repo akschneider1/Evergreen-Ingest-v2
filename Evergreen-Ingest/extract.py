@@ -194,7 +194,7 @@ def extract_document(
         batch_length=10,
         max_char_buffer=effective_buffer,
         show_progress=False,
-        resolver_params={},
+        resolver_params={"enable_fuzzy_alignment": False},
         language_model_params={"max_output_tokens": config.get("max_output_tokens", 2048)},
         prompt_validation_level=pv.PromptValidationLevel.OFF,
     )
