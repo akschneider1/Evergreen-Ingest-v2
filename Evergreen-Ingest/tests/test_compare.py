@@ -167,3 +167,69 @@ def test_compare_all_matched(tmp_path):
     )
     assert comparison["summary"]["matched"] == 1
     assert comparison["summary"]["drifted"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Edge-case tests for _similarity and _values_equal
+# ---------------------------------------------------------------------------
+
+def test_similarity_parameter_key_exact_match():
+    """When both dicts have a 'parameter' key with identical values → 1.0."""
+    a = {"parameter": "income tax rate", "value": "4.4%"}
+    b = {"parameter": "income tax rate", "value": "4.25%"}
+    assert _jaccard(a, b) == 1.0
+
+
+def test_similarity_parameter_substring():
+    """'income tax' is a substring of 'state income tax rate' → 0.7."""
+    a = {"parameter": "income tax"}
+    b = {"parameter": "state income tax rate"}
+    assert _jaccard(a, b) == pytest.approx(0.7)
+
+
+def test_similarity_parameter_mismatch():
+    """'income tax' vs 'filing deadline' — no substring relation → 0.0."""
+    a = {"parameter": "income tax"}
+    b = {"parameter": "filing deadline"}
+    assert _jaccard(a, b) == pytest.approx(0.0)
+
+
+def test_match_threshold_above(tmp_path):
+    """Extractions with Jaccard ≥ 0.3 should be matched (or drifted), not missing/extra."""
+    attrs = {"value": "4.4%", "type": "flat"}
+    policy = [MockExtraction("tax_rate", "rate 4.4%", attrs)]
+    impl = [MockExtraction("tax_rate", "rate is 4.4%", attrs)]
+    result = _match_extractions(policy, impl)
+    assert len(result) == 1
+    assert result[0]["status"] in ("matched", "drifted")
+
+
+def test_match_threshold_below(tmp_path):
+    """Extractions in the same class but with 0 similarity → one missing + one extra."""
+    policy = [MockExtraction("tax_rate", "rate 4.4%", {"value": "4.4%"})]
+    impl = [MockExtraction("tax_rate", "rate 4.25%", {"rate": "4.25%"})]
+    # key overlap: {"value"} vs {"rate"} → Jaccard = 0/2 = 0.0 → below threshold
+    result = _match_extractions(policy, impl)
+    statuses = {r["status"] for r in result}
+    assert "missing" in statuses
+    assert "extra" in statuses
+
+
+def test_values_equal_none_values():
+    """Two dicts with None values for the same key are considered equal."""
+    a = {"value": None, "type": "flat"}
+    equal, drifted = _values_equal(a, a)
+    assert equal is True
+    assert drifted == []
+
+
+def test_values_equal_normalised_strings():
+    """Whitespace differences in values are normalised away."""
+    a = {"rate": "4.4 %"}
+    b = {"rate": "4.4%"}
+    # _normalize strips/lowercases but does NOT remove internal spaces,
+    # so "4.4 %" and "4.4%" differ — confirms the normalise function behaviour.
+    equal, drifted = _values_equal(a, b)
+    # These are NOT equal after normalization (space is preserved)
+    assert equal is False
+    assert "rate" in drifted

@@ -188,13 +188,33 @@ python app.py
 
 ## Testing
 
-```bash
-# Unit tests (no API key required)
-pytest tests/test_compare.py tests/test_validate.py -v
+### Running tests
 
-# Full integration tests (requires GOOGLE_API_KEY)
-pytest tests/ -v
+```bash
+# Fast suite — no API key required (~88 tests):
+pytest tests/test_compare.py tests/test_validate.py tests/test_single_doc.py \
+       tests/test_helpers.py tests/test_app.py tests/test_extract.py -v
+
+# Full suite including live API tests:
+pytest tests/ -v  # requires ANTHROPIC_API_KEY or GOOGLE_API_KEY
 ```
+
+### Test files
+
+| File | What it covers | API key? |
+|---|---|---|
+| `test_compare.py` | Diff matching logic: similarity scoring, all four statuses, parameter-key matching, threshold boundary, normalisation edge cases | No |
+| `test_validate.py` | Decision state: save/load/clear, progress, atomic writes | No |
+| `test_single_doc.py` | Single-doc view builder: indexing, char intervals, JSON roundtrip, fallback class name | No |
+| `test_helpers.py` | `_friendly_error` error translation (parametrized), domain registry (`get_domain`) | No |
+| `test_app.py` | FastAPI routes: upload validation, status polling, compare/extract views, report exports (JSON + CSV), validation POST | No |
+| `test_extract.py` | Document reading (MD/HTML/CSV), error paths (missing file, zero-extraction config flag, missing API key) | No (read tests); Yes (live extraction) |
+
+### Fixtures
+
+Pre-built document pairs in `tests/fixtures/`:
+- `policy_tax_current.md` + `training_manual_tax_stale.md` — tax pair with 5 drifts + 1 missing
+- `policy_benefits_current.html` + `training_manual_benefits.html` — benefits pair with 4 drifts + 2 missing
 
 ## Design principles
 
