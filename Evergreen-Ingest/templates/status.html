@@ -49,7 +49,7 @@
     <!-- Processing state -->
     <div id="processing-view">
       <h1>Processing your documents…</h1>
-      <p class="status-wait-note">Usually takes 10–60 seconds depending on document length.</p>
+      <p class="status-wait-note">Usually takes 1–10 minutes depending on document length and model.</p>
 
       <!-- Pizza tracker -->
       <div class="tracker" aria-label="Progress steps">
@@ -107,7 +107,7 @@
 const COMPARISON_ID = "{{ comparison_id }}";
 const MODE = "{{ meta.mode or 'compare' }}";
 const POLL_INTERVAL_MS = 1000;
-const CLIENT_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes
+const CLIENT_TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes (pipeline can take 8-10 min)
 
 const STEP_ORDER = MODE === "extract"
   ? ["pending", "extracting"]
