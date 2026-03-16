@@ -216,11 +216,17 @@ def extract_document(
 
     n_extractions = len(result.extractions or [])
     if n_extractions == 0:
-        logger.warning(
-            "lx.extract returned 0 extractions for %s/%s — "
-            "set DEBUG_EXTRACTION=1 and re-run to see the raw model response",
-            comparison_id, doc_slot,
+        msg = (
+            f"lx.extract returned 0 extractions for {comparison_id}/{doc_slot}. "
+            "Set DEBUG_EXTRACTION=1 and re-run to see the raw model response. "
+            "Tip: try a different domain, or add a custom prompt describing what to look for."
         )
+        logger.warning(msg)
+        if config.get("fail_on_empty_extraction", True):
+            raise RuntimeError(
+                f"No parameters found in '{Path(source_path).name}'. "
+                "Try a different domain or add a custom prompt describing what to look for."
+            )
     else:
         logger.info(
             "lx.extract done — %s/%s: %d extractions",

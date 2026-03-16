@@ -119,7 +119,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         )
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
-executor = ThreadPoolExecutor(max_workers=2)
+executor = ThreadPoolExecutor(max_workers=CONFIG.get("pipeline_workers", 4))
 
 PIPELINE_TIMEOUT_SECONDS = 600  # 10 minutes
 
@@ -157,9 +157,15 @@ def _write_meta(comparison_id: str, meta: dict) -> None:
 def _friendly_error(exc: Exception, model_id: str = "") -> str:
     msg = str(exc)
     low = msg.lower()
+    if "no parameters found" in low:
+        return msg  # already user-friendly from extract.py
     if "api_key" in low or "api key" in low or "authentication" in low or "unauthenticated" in low or "incorrect api key" in low:
+        if model_id.startswith("claude"):
+            return "API key error — check that ANTHROPIC_API_KEY is set correctly in your environment."
         return "API key error — check that OPENAI_API_KEY (or GOOGLE_API_KEY) is set correctly in your environment."
-    if "quota" in low or "resource_exhausted" in low:
+    if "quota" in low or "resource_exhausted" in low or "529" in msg:
+        if model_id.startswith("claude"):
+            return "Anthropic API is overloaded. Wait a moment and try again."
         if model_id.startswith("gpt"):
             return "API quota exceeded. Wait a moment and try again, or check your OpenAI quota at platform.openai.com."
         return "API quota exceeded. Wait a moment and try again, or check your Google Cloud quota."
@@ -168,7 +174,7 @@ def _friendly_error(exc: Exception, model_id: str = "") -> str:
     if "timeout" in low or "deadline" in low:
         return "Request timed out. Try again — large documents occasionally need a retry."
     if ("model" in low and ("not found" in low or "invalid" in low)) or "404" in msg:
-        return f"Model not found or unavailable. Check MODEL_ID in config.yaml. Detail: {msg}"
+        return f"Model not found or unavailable. Check model_id in config.yaml. Detail: {msg}"
     if "permission" in low or "403" in msg:
         return "Permission denied. Ensure your API key has access to the selected model's API."
     return msg

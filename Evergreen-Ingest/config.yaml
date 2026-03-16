@@ -5,6 +5,8 @@ max_output_tokens: 2048  # Actual usage is ~200-800 tokens/call; 8192 was oversi
 max_char_buffer: 6000    # 6000 covers all demo fixtures in a single chunk; extract.py also
                          # dynamically expands this to len(doc)+1 so any doc fits in 1 chunk
 api_timeout: 200         # Per-call timeout in seconds (OpenAI default is 600)
+pipeline_workers: 4      # Background thread pool size — each run holds a worker for 10-60s
+fail_on_empty_extraction: true  # Fail pipeline with user-facing error when 0 params extracted
 domains:
   - tax
   - benefits

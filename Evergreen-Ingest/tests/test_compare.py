@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from compare import (
-    _jaccard,
+    _similarity as _jaccard,
     _values_equal,
     _match_extractions,
     compare_extractions,
@@ -55,7 +55,7 @@ def test_jaccard_identical():
 
 
 def test_jaccard_empty():
-    assert _jaccard({}, {}) == 1.0
+    assert _jaccard({}, {}) == 0.0  # no keys → no basis to match
     assert _jaccard({"k": "v"}, {}) == 0.0
 
 

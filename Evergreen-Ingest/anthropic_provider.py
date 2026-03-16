@@ -65,7 +65,7 @@ class AnthropicLanguageModel(BaseLanguageModel):
         self._client = _anthropic.Anthropic(
             api_key=api_key,
             timeout=client_timeout,
-            max_retries=0,  # surface errors immediately
+            max_retries=2,  # retry on transient 429/500/529 with exponential backoff
         )
         super().__init__(**kwargs)
 
