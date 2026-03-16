@@ -102,6 +102,14 @@ class AnthropicLanguageModel(BaseLanguageModel):
             )
             output_text = response.content[0].text
 
+            logger.debug(
+                "Claude raw response (model=%s, input_tokens=%d, output_tokens=%d):\n%s",
+                self.model_id,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                output_text,
+            )
+
             # Guard: if Claude returned an empty or missing fence body, substitute
             # a valid empty-extractions response rather than letting the resolver
             # fail with "Expecting value: line 1 column 1 (char 0)".
@@ -109,7 +117,7 @@ class AnthropicLanguageModel(BaseLanguageModel):
             if not fence_match or not fence_match.group(1).strip():
                 logger.warning(
                     "Claude returned empty/missing JSON fence — substituting "
-                    "empty extractions. Raw response: %r", output_text[:200]
+                    "empty extractions. Full raw response:\n%s", output_text
                 )
                 output_text = self._EMPTY_RESPONSE
 
