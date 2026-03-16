@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import re
 from collections.abc import Iterator, Sequence
 
 import anthropic as _anthropic
@@ -75,6 +76,25 @@ class AnthropicLanguageModel(BaseLanguageModel):
         # the JSON block from the response.
         return True
 
+    # Fallback returned when a document has no extractable parameters.
+    # langextract's resolver expects {"extractions": []} — an empty list inside
+    # the wrapper key — to produce zero extractions without a parse error.
+    _EMPTY_RESPONSE = '```json\n{"extractions": []}\n```'
+
+    _SYSTEM_PROMPT = (
+        "You are a precise information extraction assistant. "
+        "You will be given a document and asked to extract structured parameters from it.\n\n"
+        "IMPORTANT RULES:\n"
+        "1. Always respond with a single ```json code fence containing a JSON object.\n"
+        "2. The JSON object MUST have an \"extractions\" key whose value is a list.\n"
+        "3. When no relevant parameters are found, respond with EXACTLY:\n"
+        "```json\n"
+        "{\"extractions\": []}\n"
+        "```\n"
+        "4. Never return an empty code fence. Never return plain text without a fence.\n"
+        "5. Do not include any explanation outside the code fence."
+    )
+
     def _process_single_prompt(
         self, prompt: str, config: dict
     ) -> core_types.ScoredOutput:
@@ -82,15 +102,24 @@ class AnthropicLanguageModel(BaseLanguageModel):
         try:
             response = self._client.messages.create(
                 model=self.model_id,
-                system=(
-                    "You are a helpful assistant that responds in JSON format. "
-                    "Always wrap your JSON response in a ```json code fence."
-                ),
+                system=self._SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=config.get("max_output_tokens", self.max_output_tokens),
                 temperature=config.get("temperature", self.temperature),
             )
             output_text = response.content[0].text
+
+            # Guard: if Claude returned an empty or missing fence body, substitute
+            # a valid empty-extractions response rather than letting the resolver
+            # fail with "Expecting value: line 1 column 1 (char 0)".
+            fence_match = re.search(r"```json\s*([\s\S]*?)```", output_text)
+            if not fence_match or not fence_match.group(1).strip():
+                logger.warning(
+                    "Claude returned empty/missing JSON fence — substituting "
+                    "empty extractions. Raw response: %r", output_text[:200]
+                )
+                output_text = self._EMPTY_RESPONSE
+
             return core_types.ScoredOutput(score=1.0, output=output_text)
         except _anthropic.APIStatusError as exc:
             raise exceptions.InferenceRuntimeError(
