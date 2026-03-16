@@ -71,6 +71,8 @@ A shareable drift report showing what matched, what drifted, what was validated,
 
 ## Architecture
 
+![Evergreen ecosystem architecture](static/architecture.svg)
+
 ```
 Source policy ─────┐
                    ├──→ langextract (same schema) ──→ compare ──→ validate ──→ report
@@ -207,7 +209,7 @@ Derive `question` from `extraction_class` + `attributes.parameter`. Set `expecte
 
 ```bash
 cp .env.example .env
-# Add OPENAI_API_KEY or GOOGLE_API_KEY
+# Add ANTHROPIC_API_KEY (default), OPENAI_API_KEY, or GOOGLE_API_KEY
 
 pip install -r requirements.txt
 python app.py
@@ -229,8 +231,11 @@ python app.py
 
 | Model | Provider | Notes |
 |-------|----------|-------|
-| `gpt-4o-mini` | OpenAI | Fast, low cost, good for demos |
-| `gpt-4o` | OpenAI | Higher accuracy |
+| `claude-sonnet-4-6` | Anthropic | **Default** · 200K context, recommended |
+| `claude-haiku-4-5` | Anthropic | Fast, low cost, 200K context |
+| `claude-opus-4-6` | Anthropic | Most capable, 200K context |
+| `gpt-4o-mini` | OpenAI | Fast, low cost, 128K context |
+| `gpt-4o` | OpenAI | Higher accuracy, 128K context |
 | `gpt-4.1-mini` | OpenAI | 1M context, low cost |
 | `gpt-4.1` | OpenAI | 1M context, highest accuracy |
 | `gemini-2.5-flash` | Google | Very low cost, 1M context, best for large docs |
