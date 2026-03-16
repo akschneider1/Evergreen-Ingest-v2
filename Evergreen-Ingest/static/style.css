@@ -55,6 +55,95 @@ header {
 }
 .btn-nav-print:hover { background: #334155; color: white; }
 
+/* ---- Hero ---- */
+.hero {
+  background: #1e293b;
+  color: white;
+  padding: 3.5rem 1.5rem 3rem;
+  text-align: center;
+}
+.hero-inner {
+  max-width: 680px;
+  margin: 0 auto;
+}
+.hero-headline {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: white;
+  margin-bottom: 0.85rem;
+}
+.hero-sub {
+  font-size: 1.05rem;
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-bottom: 1.75rem;
+}
+.hero-cta {
+  display: inline-block;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+/* ---- How it works ---- */
+.how-it-works {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 2.5rem 1.5rem;
+}
+.how-it-works-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.how-it-works-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+.steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.step {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.step-num {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: #1e293b;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+.step-body {
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.6;
+}
+.step-body strong {
+  color: #1e293b;
+}
+
+/* ---- Summary hint ---- */
+.summary-hint {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
 /* ---- Main layout ---- */
 main {
   max-width: var(--max-width);

@@ -17,18 +17,64 @@
   </div>
 </header>
 
-<main class="upload-page">
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-inner">
+    <h1 class="hero-headline">See where your training manual drifts from policy.</h1>
+    <p class="hero-sub">Upload two documents — your source policy and the artifact that's supposed to reflect it. Get a side-by-side drift report in minutes, grounded to exact source text.</p>
+    <a href="#upload-form" class="btn-primary hero-cta">Get started →</a>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="how-it-works">
+  <div class="how-it-works-inner">
+    <h2 class="how-it-works-title">How it works</h2>
+    <ol class="steps">
+      <li class="step">
+        <span class="step-num">1</span>
+        <div class="step-body">
+          <strong>Upload two documents.</strong>
+          Your source policy (the authority — what <em>should</em> be true) and the document that's supposed to reflect it: a training manual, agent script, FAQ, or knowledge base article.
+        </div>
+      </li>
+      <li class="step">
+        <span class="step-num">2</span>
+        <div class="step-body">
+          <strong>Choose what parameters to check.</strong>
+          Pick a preset domain — tax or benefits — to load a ready-made schema of parameter types (rates, thresholds, deadlines). Or describe what to look for in plain language.
+        </div>
+      </li>
+      <li class="step">
+        <span class="step-num">3</span>
+        <div class="step-body">
+          <strong>Review the drift report.</strong>
+          The tool extracts matching parameters from both documents and shows you exactly what's different: same parameter, different value; present in policy but missing from implementation; or the reverse.
+        </div>
+      </li>
+      <li class="step">
+        <span class="step-num">4</span>
+        <div class="step-body">
+          <strong>Validate and export.</strong>
+          Confirm, edit, or dismiss each finding. Export a report — or push validated parameters directly to your evaluation pipeline or vector store.
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<main class="upload-page" id="upload-form">
   <form method="POST" action="/upload" enctype="multipart/form-data" class="upload-form">
 
     <!-- Document pair -->
     <div class="form-row two-col">
       <div class="form-group">
         <label for="policy_file">
-          Source Policy
+          Source policy
           <span class="label-hint">The authority — what should be true</span>
         </label>
         <div class="demo-chips">
-          <span class="demo-chips-label">Try a demo:</span>
+          <span class="demo-chips-label">No files? Try a demo:</span>
           <button type="button" class="demo-chip" data-slot="policy" data-key="tax_policy">Tax · DOR</button>
           <button type="button" class="demo-chip" data-slot="policy" data-key="benefits_policy">Benefits · CDLE</button>
         </div>
@@ -40,11 +86,11 @@
 
       <div class="form-group">
         <label for="implementation_file">
-          Implementation Artifact
-          <span class="label-hint">What's in use — training manual, FAQ, script</span>
+          Implementation document
+          <span class="label-hint">What's in use — training manual, FAQ, agent script</span>
         </label>
         <div class="demo-chips">
-          <span class="demo-chips-label">Try a demo:</span>
+          <span class="demo-chips-label">No files? Try a demo:</span>
           <button type="button" class="demo-chip" data-slot="implementation" data-key="tax_implementation">Tax · DOR</button>
           <button type="button" class="demo-chip" data-slot="implementation" data-key="benefits_implementation">Benefits · CDLE</button>
         </div>
@@ -59,8 +105,8 @@
     <div class="form-row two-col">
       <div class="form-group">
         <label for="domain">
-          Domain
-          <span class="label-hint">Preset extraction schema</span>
+          Program area
+          <span class="label-hint">Loads a preset list of parameter types to check</span>
         </label>
         <select name="domain" id="domain">
           {% for d in domains %}
@@ -72,7 +118,7 @@
 
       <div class="form-group">
         <label for="model">
-          Model
+          AI model
           <span class="label-hint">Extraction quality vs. speed</span>
         </label>
         <select name="model" id="model">
@@ -97,13 +143,13 @@
 
     <!-- Advanced -->
     <details class="advanced">
-      <summary>Advanced options</summary>
+      <summary>Advanced options <span class="summary-hint">— extraction depth, custom prompt</span></summary>
       <div class="advanced-inner">
         <div class="form-row two-col">
           <div class="form-group">
             <label for="extraction_passes">
-              Extraction passes
-              <span class="label-hint">More passes = higher recall, slower &amp; costlier</span>
+              How thoroughly to scan
+              <span class="label-hint">More passes find more parameters — but take longer and cost more</span>
             </label>
             <div class="slider-row">
               <span class="slider-label">1 — Fast</span>
@@ -146,28 +192,24 @@
 <section class="pipeline-bullets">
   <ul>
     <li>
-      <strong>One review pass. Two production-ready outputs.</strong>
-      When a policy SME validates findings in Ingest, they produce two artifacts at once:
-      a <em>golden dataset</em> of confirmed parameters for evaluation and monitoring, and
-      <em>source-grounded chunks</em> — policy passages carrying their exact character positions
-      and validation status — ready to embed and index into a vector store for RAG.
-      The expert reviews once; both outputs are generated from the same session.
+      <strong>One review pass. Two outputs.</strong>
+      When a policy expert validates findings here, they produce two things at once:
+      a <em>set of confirmed parameters</em> that can be used to test AI systems,
+      and <em>policy-grounded text chunks</em> ready to index into a knowledge base.
+      Review once; both outputs come from the same session.
     </li>
     <li>
-      <strong>Ground truth for your AI evaluation pipeline.</strong>
-      Each confirmed parameter is a ready-made test case: a known-correct value from the policy,
-      a known-wrong value from the stale implementation, and the source sentence that proves it.
+      <strong>Ready-made test cases for AI evaluation.</strong>
+      Each confirmed finding is a complete test case: the correct value from policy,
+      the wrong value from the stale document, and the exact source sentence that proves it.
       Export to <a href="https://github.com/akschneider1/Evergreen-Evals" target="_blank">Evergreen Evals</a>
-      or push to a Langfuse dataset. Every eval failure traces back to the exact policy text
-      that defines the correct answer.
+      or push to Langfuse. Every failed eval traces back to the specific policy text that defines the right answer.
     </li>
     <li>
-      <strong>Policy-grounded retrieval for the knowledge base.</strong>
-      Validated parameters embed with their full lineage — domain, extraction class, character
-      positions, and decision status — as vector metadata. Filter retrievals to
-      <code>decision == confirmed</code> to serve only SME-verified content.
-      Expand the context window at retrieval time using character positions to give the LLM
-      the surrounding policy passage, not just the extracted sentence.
+      <strong>Verified content for your knowledge base.</strong>
+      Validated parameters carry full lineage — which document, which passage, which expert decision —
+      as metadata. Filter your knowledge base to <code>decision == confirmed</code>
+      to serve only SME-verified content to your AI.
     </li>
   </ul>
 </section>
