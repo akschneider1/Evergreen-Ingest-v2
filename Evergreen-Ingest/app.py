@@ -29,6 +29,7 @@ from fastapi.templating import Jinja2Templates
 
 import compare as compare_module
 import extract as extract_module
+import single_doc as single_doc_module
 import validate as validate_module
 
 load_dotenv()
@@ -81,7 +82,7 @@ UPLOAD_MAX_BYTES: int = CONFIG.get("upload_max_bytes", 5 * 1024 * 1024)
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 SOURCES_DIR.mkdir(parents=True, exist_ok=True)
-for sub in ("extractions", "visualizations", "comparisons", "validations"):
+for sub in ("extractions", "visualizations", "comparisons", "validations", "sources"):
     (OUTPUT_DIR / sub).mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
@@ -281,6 +282,84 @@ def _run_pipeline(
 
 
 # ---------------------------------------------------------------------------
+# Single-document extraction pipeline
+# ---------------------------------------------------------------------------
+
+def _run_single_pipeline(
+    extraction_id: str,
+    source_path: Path,
+    domain: str,
+) -> None:
+    """Run extraction on a single document. Called in a thread pool."""
+    meta = _read_meta(extraction_id)
+    meta["logs"] = []
+    meta["started_at"] = datetime.now(timezone.utc).isoformat()
+
+    def _log(msg: str) -> None:
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        entry = f"[{ts}] {msg}"
+        logger.info("[%s] %s", extraction_id, msg)
+        meta["logs"].append(entry)
+        _write_meta(extraction_id, meta)
+
+    _live_handler = _PipelineLogHandler(meta, extraction_id)
+    _live_loggers = [
+        logging.getLogger("extract"),
+        logging.getLogger("anthropic_provider"),
+    ]
+    for _lgg in _live_loggers:
+        _lgg.addHandler(_live_handler)
+
+    try:
+        passes = meta.get("extraction_passes", CONFIG.get("extraction_passes", 1))
+        model_id = meta.get("model", CONFIG.get("model_id", "gpt-4o-mini"))
+
+        meta["status"] = "extracting"
+        _write_meta(extraction_id, meta)
+        _log(
+            f"Extracting document… "
+            f"(model={model_id}, {passes} pass{'es' if passes != 1 else ''})"
+        )
+
+        _jsonl, _viz, doc = extract_module.extract_document(
+            source_path=source_path,
+            domain_name=domain,
+            output_dir=OUTPUT_DIR,
+            comparison_id=extraction_id,
+            doc_slot="document",
+            extraction_passes=passes,
+            model_id=model_id,
+        )
+
+        n = len(doc.extractions or [])
+        _log(f"Extraction complete — {n} parameter(s) found.")
+
+        single_doc_module.build_single_doc_view(
+            doc=doc,
+            extraction_id=extraction_id,
+            domain=domain,
+            document_name=meta.get("document_filename", source_path.name),
+            model=model_id,
+            output_dir=OUTPUT_DIR,
+        )
+
+        meta["status"] = "ready"
+        _write_meta(extraction_id, meta)
+        logger.info("[%s] Single-doc pipeline complete.", extraction_id)
+
+    except Exception as exc:
+        logger.exception("[%s] Single-doc pipeline failed: %s", extraction_id, exc)
+        meta["status"] = "error"
+        meta["error"] = _friendly_error(exc, model_id=model_id)
+        meta["error_detail"] = f"{type(exc).__name__}: {exc}"
+        meta["logs"].append(f"[error] {type(exc).__name__}: {exc}")
+        _write_meta(extraction_id, meta)
+    finally:
+        for _lgg in _live_loggers:
+            _lgg.removeHandler(_live_handler)
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
@@ -299,21 +378,36 @@ async def history(request: Request):
         except Exception:
             continue
 
-        # Attach summary counts if comparison is ready
+        # Attach summary counts if ready
         summary = None
-        comp_path = meta_path.parent / "comparison.json"
-        if comp_path.exists():
-            try:
-                with open(comp_path) as f:
-                    summary = json.load(f).get("summary")
-            except Exception:
-                pass
+        if meta.get("mode") == "extract":
+            sd_path = meta_path.parent / "single_doc.json"
+            if sd_path.exists():
+                try:
+                    with open(sd_path) as f:
+                        sd = json.load(f)
+                    summary = {"total": sd.get("total", 0)}
+                except Exception:
+                    pass
+        else:
+            comp_path = meta_path.parent / "comparison.json"
+            if comp_path.exists():
+                try:
+                    with open(comp_path) as f:
+                        summary = json.load(f).get("summary")
+                except Exception:
+                    pass
 
         # Derive a readable display name
-        policy_stem = Path(meta.get("policy_filename", "policy")).stem
-        impl_stem = Path(meta.get("implementation_filename", "implementation")).stem
         date_str = (meta.get("created_at", "") or "")[:10]
-        meta["display_name"] = f"{meta.get('domain', '').title()}: {policy_stem} vs {impl_stem}"
+        if not meta.get("display_name"):
+            if meta.get("mode") == "extract":
+                doc_stem = Path(meta.get("document_filename", "document")).stem
+                meta["display_name"] = f"{meta.get('domain', '').title()}: {doc_stem}"
+            else:
+                policy_stem = Path(meta.get("policy_filename", "policy")).stem
+                impl_stem = Path(meta.get("implementation_filename", "implementation")).stem
+                meta["display_name"] = f"{meta.get('domain', '').title()}: {policy_stem} vs {impl_stem}"
         meta["display_date"] = date_str
         meta["summary"] = summary
         entries.append(meta)
@@ -434,6 +528,76 @@ async def upload(
 
     return RedirectResponse(
         url=f"/compare/{comparison_id}/status", status_code=303
+    )
+
+
+@app.post("/upload-single")
+async def upload_single(
+    document_file: UploadFile = Form(...),
+    domain: str = Form(...),
+    model: str = Form("claude-sonnet-4-6"),
+    custom_prompt: str = Form(""),
+    document_demo: str = Form(""),
+    extraction_passes: int = Form(1),
+):
+    """Upload a single document and start the Extract & Validate pipeline."""
+    def _resolve(upload: UploadFile, demo_key: str) -> tuple[str, bytes]:
+        if demo_key and demo_key in DEMO_FILES and (not upload.filename or upload.size == 0):
+            fixture = DEMO_FILES[demo_key]
+            return fixture.name, fixture.read_bytes()
+        return upload.filename or "doc.txt", None
+
+    doc_name, demo_bytes = _resolve(document_file, document_demo)
+
+    if not _allowed_suffix(doc_name):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {doc_name}. Accepted: .md .txt .html .pdf .docx",
+        )
+
+    extraction_id = _make_comparison_id()
+
+    doc_bytes = demo_bytes if demo_bytes is not None else await document_file.read()
+    if len(doc_bytes) > UPLOAD_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"{doc_name} exceeds maximum size of {UPLOAD_MAX_BYTES // 1024 // 1024} MB",
+        )
+
+    doc_suffix = Path(doc_name).suffix.lower()
+    doc_path = SOURCES_DIR / f"{extraction_id}_document{doc_suffix}"
+    doc_path.write_bytes(doc_bytes)
+
+    if model not in ALLOWED_MODELS:
+        model = "claude-sonnet-4-6"
+
+    doc_stem = Path(doc_name).stem
+    date_str = datetime.now(timezone.utc).strftime("%b %-d")
+    display_name = f"{domain.title()}: {doc_stem} — {date_str}"
+
+    meta = {
+        "comparison_id": extraction_id,
+        "mode": "extract",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending",
+        "domain": domain,
+        "model": model,
+        "custom_prompt": custom_prompt,
+        "document_filename": doc_name,
+        "document_path": str(doc_path.relative_to(BASE_DIR)),
+        "extraction_passes": max(1, min(5, extraction_passes)),
+        "display_name": display_name,
+        "error": None,
+        # Populate these so status.html meta-list renders cleanly
+        "policy_filename": doc_name,
+        "implementation_filename": "",
+    }
+    _write_meta(extraction_id, meta)
+
+    executor.submit(_run_single_pipeline, extraction_id, doc_path, domain)
+
+    return RedirectResponse(
+        url=f"/extract/{extraction_id}/status", status_code=303
     )
 
 
@@ -685,6 +849,218 @@ async def report_csv(comparison_id: str):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+
+# ---------------------------------------------------------------------------
+# Extract & Validate routes  (/extract/{id}/...)
+# ---------------------------------------------------------------------------
+
+@app.get("/extract/{extraction_id}/status.json")
+async def extract_status_json(extraction_id: str):
+    meta = _check_timeout(_read_meta(extraction_id))
+    return JSONResponse(meta)
+
+
+@app.get("/extract/{extraction_id}/status", response_class=HTMLResponse)
+async def extract_status_page(request: Request, extraction_id: str):
+    meta = _check_timeout(_read_meta(extraction_id))
+    if meta["status"] == "ready":
+        return RedirectResponse(url=f"/extract/{extraction_id}", status_code=303)
+    return templates.TemplateResponse(
+        "status.html",
+        {
+            "request": request,
+            "meta": meta,
+            "comparison_id": extraction_id,
+            "mode": "extract",
+        },
+    )
+
+
+@app.get("/extract/{extraction_id}", response_class=HTMLResponse)
+async def extract_review(request: Request, extraction_id: str):
+    meta = _read_meta(extraction_id)
+    if meta["status"] != "ready":
+        return RedirectResponse(url=f"/extract/{extraction_id}/status", status_code=303)
+
+    single_doc = single_doc_module.load_single_doc(extraction_id, OUTPUT_DIR)
+    state = validate_module.load_state(extraction_id, OUTPUT_DIR)
+
+    for p in single_doc["parameters"]:
+        p["decision"] = validate_module.get_decision(state, p["index"])
+
+    total = single_doc["total"]
+    progress = validate_module.validation_progress(state, total, total)
+
+    return templates.TemplateResponse(
+        "extract_review.html",
+        {
+            "request": request,
+            "meta": meta,
+            "single_doc": single_doc,
+            "extraction_id": extraction_id,
+            "progress": progress,
+        },
+    )
+
+
+@app.get("/extract/{extraction_id}/viz", response_class=HTMLResponse)
+async def extract_viz(extraction_id: str):
+    viz_path = OUTPUT_DIR / "visualizations" / extraction_id / "document.html"
+    if not viz_path.exists():
+        return HTMLResponse(
+            content=(
+                "<html><body style='font-family:sans-serif;padding:2rem;color:#888'>"
+                "<p><strong>Visualization not available.</strong></p>"
+                "<p>The extraction visualization could not be found.</p>"
+                "</body></html>"
+            ),
+            status_code=200,
+        )
+    html = viz_path.read_text(encoding="utf-8")
+    if "</body>" in html:
+        html = html.replace("</body>", _VIZ_SCROLL_JS + "\n</body>", 1)
+    else:
+        html += _VIZ_SCROLL_JS
+    return HTMLResponse(content=html)
+
+
+@app.get("/extract/{extraction_id}/param/{index}", response_class=HTMLResponse)
+async def extract_param_detail(request: Request, extraction_id: str, index: int):
+    meta = _read_meta(extraction_id)
+    single_doc = single_doc_module.load_single_doc(extraction_id, OUTPUT_DIR)
+    state = validate_module.load_state(extraction_id, OUTPUT_DIR)
+
+    params = single_doc["parameters"]
+    if index < 0 or index >= len(params):
+        raise HTTPException(status_code=404, detail="Parameter not found")
+
+    param = params[index]
+    decision = validate_module.get_decision(state, index)
+
+    prev_idx = index - 1 if index > 0 else None
+    next_idx = index + 1 if index < len(params) - 1 else None
+
+    return templates.TemplateResponse(
+        "extract_detail.html",
+        {
+            "request": request,
+            "meta": meta,
+            "single_doc": single_doc,
+            "param": param,
+            "decision": decision,
+            "prev_idx": prev_idx,
+            "next_idx": next_idx,
+            "extraction_id": extraction_id,
+            "position": index + 1,
+            "total": len(params),
+        },
+    )
+
+
+@app.post("/extract/{extraction_id}/param/{index}")
+async def extract_submit_validation(
+    request: Request,
+    extraction_id: str,
+    index: int,
+    decision: str = Form(...),
+    note: str = Form(""),
+    edited_json: str = Form(""),
+):
+    _read_meta(extraction_id)
+
+    if decision not in ("confirmed", "edited", "rejected"):
+        raise HTTPException(status_code=400, detail="Invalid decision value")
+
+    edited_value = None
+    if decision == "edited" and edited_json.strip():
+        try:
+            edited_value = json.loads(edited_json)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid JSON in edited value: {exc}"
+            )
+
+    validate_module.save_decision(
+        comparison_id=extraction_id,
+        output_dir=OUTPUT_DIR,
+        param_index=index,
+        decision=decision,
+        edited_value=edited_value,
+        note=note,
+    )
+
+    return RedirectResponse(
+        url=f"/extract/{extraction_id}/param/{index}", status_code=303
+    )
+
+
+@app.get("/extract/{extraction_id}/report", response_class=HTMLResponse)
+async def extract_report(request: Request, extraction_id: str):
+    meta = _read_meta(extraction_id)
+    single_doc = single_doc_module.load_single_doc(extraction_id, OUTPUT_DIR)
+    state = validate_module.load_state(extraction_id, OUTPUT_DIR)
+
+    total = single_doc["total"]
+    progress = validate_module.validation_progress(state, total, total)
+
+    params_with_decisions = [
+        {**p, "decision": validate_module.get_decision(state, p["index"])}
+        for p in single_doc["parameters"]
+    ]
+
+    return templates.TemplateResponse(
+        "extract_report.html",
+        {
+            "request": request,
+            "meta": meta,
+            "single_doc": single_doc,
+            "extraction_id": extraction_id,
+            "params": params_with_decisions,
+            "progress": progress,
+        },
+    )
+
+
+@app.get("/extract/{extraction_id}/report.json")
+async def extract_report_json(extraction_id: str):
+    meta = _read_meta(extraction_id)
+    single_doc = single_doc_module.load_single_doc(extraction_id, OUTPUT_DIR)
+    state = validate_module.load_state(extraction_id, OUTPUT_DIR)
+
+    records = []
+    for p in single_doc["parameters"]:
+        dec = validate_module.get_decision(state, p["index"])
+        records.append({
+            "id": f"{extraction_id}:{p['index']}",
+            "domain": meta.get("domain", ""),
+            "extraction_class": p["extraction_class"],
+            "attributes": p["attributes"],
+            "extraction_text": p["extraction_text"],
+            "char_start": p.get("char_start"),
+            "char_end": p.get("char_end"),
+            "document": meta.get("document_filename", ""),
+            "decision": dec["decision"] if dec else None,
+            "corrected_value": dec.get("edited_value") if dec else None,
+            "note": dec.get("note") if dec else None,
+            "decided_at": dec.get("decided_at") if dec else None,
+            "extraction_id": extraction_id,
+            "model": meta.get("model", ""),
+            "created_at": meta.get("created_at", ""),
+        })
+
+    return JSONResponse(content={
+        "extraction_id": extraction_id,
+        "domain": meta.get("domain", ""),
+        "document": meta.get("document_filename", ""),
+        "model": meta.get("model", ""),
+        "total": single_doc["total"],
+        "parameters": records,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Deploy routes (two-doc flow)
+# ---------------------------------------------------------------------------
 
 @app.get("/compare/{comparison_id}/deploy", response_class=HTMLResponse)
 async def deploy(request: Request, comparison_id: str):

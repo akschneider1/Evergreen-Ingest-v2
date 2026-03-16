@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extraction Report — Evergreen Ingest</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="no-print">
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+    <nav class="header-nav">
+      <a href="/comparisons">History</a>
+      <a href="/extract/{{ extraction_id }}">← Back to Review</a>
+    </nav>
+  </div>
+</header>
+
+<nav class="chapter-nav no-print">
+  <div class="chapter-nav-inner">
+    <a href="/" class="chapter-step chapter-done">Ingest</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-done">Extract</span>
+    <span class="chapter-sep">›</span>
+    <a href="/extract/{{ extraction_id }}" class="chapter-step chapter-done">Review</a>
+    <span class="chapter-sep">›</span>
+    <a href="/extract/{{ extraction_id }}" class="chapter-step chapter-done">Validate</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-active">Report</span>
+  </div>
+</nav>
+
+<main class="report-page">
+  <nav class="breadcrumb no-print">
+    <a href="/">Home</a><span class="bc-sep">/</span>
+    <a href="/comparisons">History</a><span class="bc-sep">/</span>
+    <a href="/extract/{{ extraction_id }}">{{ meta.display_name or (meta.domain | title) }}</a><span class="bc-sep">/</span>
+    <span class="bc-current">Report</span>
+  </nav>
+
+  <h1>Extraction Report</h1>
+
+  <div class="report-meta">
+    <dl class="meta-list">
+      <dt>Document</dt><dd>{{ meta.document_filename or meta.policy_filename }}</dd>
+      <dt>Domain</dt><dd>{{ meta.domain | title }}</dd>
+      <dt>Model</dt><dd>{{ meta.model }}</dd>
+      <dt>Generated</dt><dd>{{ single_doc.generated_at }}</dd>
+    </dl>
+  </div>
+
+  <!-- Summary -->
+  <section class="report-section">
+    <h2>Summary</h2>
+    <table class="report-summary-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total extracted</td>
+          <td>{{ single_doc.total }}</td>
+        </tr>
+        <tr>
+          <td><span class="decision-badge decision-confirmed">Approved</span></td>
+          <td>{{ progress.by_decision.confirmed if progress.by_decision else 0 }}</td>
+        </tr>
+        <tr>
+          <td><span class="decision-badge decision-edited">Edited</span></td>
+          <td>{{ progress.by_decision.edited if progress.by_decision else 0 }}</td>
+        </tr>
+        <tr>
+          <td><span class="decision-badge decision-rejected">Rejected</span></td>
+          <td>{{ progress.by_decision.rejected if progress.by_decision else 0 }}</td>
+        </tr>
+        <tr class="total-row">
+          <td><strong>Reviewed</strong></td>
+          <td>{{ progress.decided }} / {{ single_doc.total }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Validation progress -->
+  <section class="report-section">
+    <h2>Validation Progress</h2>
+    <p>
+      {{ progress.decided }} of {{ single_doc.total }} parameter{% if single_doc.total != 1 %}s{% endif %} reviewed
+      ({{ progress.percent }}%).
+    </p>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+    </div>
+  </section>
+
+  <!-- Parameters table -->
+  <section class="report-section">
+    <h2>All Parameters</h2>
+    {% if params %}
+    <table class="findings-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Type</th>
+          <th>Extracted text</th>
+          <th>Attributes</th>
+          <th>Decision</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for param in params %}
+      <tr class="finding-row {% if param.decision %}status-{{ param.decision.decision }}{% endif %}">
+        <td>
+          <a href="/extract/{{ extraction_id }}/param/{{ param.index }}" class="no-print">
+            {{ param.index + 1 }}
+          </a>
+          <span class="print-only">{{ param.index + 1 }}</span>
+        </td>
+        <td><code>{{ param.extraction_class }}</code></td>
+        <td class="text-cell">{{ param.extraction_text | truncate(100) }}</td>
+        <td class="text-cell">
+          {% for k, v in param.attributes.items() %}
+          <span class="attr-kv"><strong>{{ k }}:</strong> {{ v }}</span>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </td>
+        <td>
+          {% if param.decision %}
+            <span class="decision-badge decision-{{ param.decision.decision }}">{{ param.decision.decision }}</span>
+            {% if param.decision.decision == 'edited' and param.decision.edited_value %}
+              <br><small class="report-corrected-val">&#x2192; {{ param.decision.edited_value | tojson }}</small>
+            {% endif %}
+            {% if param.decision.note %}<br><small class="report-note">{{ param.decision.note | truncate(60) }}</small>{% endif %}
+          {% else %}
+            <span class="pending-badge">pending</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No parameters extracted.</p>
+    {% endif %}
+  </section>
+
+  {% if progress.percent < 100 and single_doc.total > 0 %}
+  <div class="report-pending-callout no-print">
+    {{ single_doc.total - progress.decided }} parameter{% if (single_doc.total - progress.decided) != 1 %}s{% endif %} still pending review.
+    <a href="/extract/{{ extraction_id }}">Continue reviewing →</a>
+  </div>
+  {% endif %}
+
+  <div class="report-actions no-print">
+    <a href="/extract/{{ extraction_id }}/report.json" class="btn-secondary">
+      Download JSON
+    </a>
+    <button onclick="window.print()" class="btn-secondary">Print / PDF</button>
+  </div>
+</main>
+
+<footer class="no-print">
+  <p>Evergreen Ingest &nbsp;·&nbsp; Every finding grounded to exact source text.</p>
+</footer>
+</body>
+</html>

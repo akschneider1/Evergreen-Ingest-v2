@@ -3,78 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Evergreen Ingest — Close the gap between policy intent and implementation</title>
+<title>Evergreen Ingest — Compare policy to implementation, spot what's out of sync</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header>
   <div class="header-inner">
     <a href="/" class="logo">Evergreen Ingest</a>
-    <span class="tagline">Close the gap between policy intent and implementation in the AI era.</span>
+    <span class="tagline">Upload your policy and training manual. See exactly what's out of sync.</span>
     <nav class="header-nav">
       <a href="/comparisons">History</a>
     </nav>
   </div>
 </header>
 
-<!-- Hero -->
-<section class="hero">
-  <div class="hero-inner">
-    <h1 class="hero-headline">See where your training manual drifts from policy.</h1>
-    <p class="hero-sub">Upload two documents — your source policy and the artifact that's supposed to reflect it. Get a side-by-side drift report in minutes, grounded to exact source text.</p>
-    <a href="#upload-form" class="btn-primary hero-cta">Get started →</a>
+<!-- Workflow selector -->
+<section class="workflow-cards" id="upload-form">
+  <div class="workflow-cards-inner">
+    <div class="workflow-card workflow-card-active" id="wf-card-compare" onclick="switchWorkflow('compare')">
+      <div class="wf-card-icon">&#x21C4;</div>
+      <div class="wf-card-body">
+        <h3 class="wf-card-title">Find Drift</h3>
+        <p class="wf-card-desc">Upload your official policy and the document your team actually uses (training manual, FAQ, or script). Get a side-by-side report of everything that doesn't match.</p>
+        <span class="wf-card-hint">Have both documents? Start here.</span>
+      </div>
+    </div>
+    <div class="workflow-card" id="wf-card-extract" onclick="switchWorkflow('extract')">
+      <div class="wf-card-icon">&#x2756;</div>
+      <div class="wf-card-body">
+        <h3 class="wf-card-title">Extract &amp; Validate</h3>
+        <p class="wf-card-desc">Upload a single document. Pull out key facts (thresholds, deadlines, rates) and review each one — approve, correct, or reject. Good for building a verified fact sheet.</p>
+        <span class="wf-card-hint">Have just one document? Start here.</span>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- How it works -->
-<section class="how-it-works">
-  <div class="how-it-works-inner">
-    <h2 class="how-it-works-title">How it works</h2>
-    <ol class="steps">
-      <li class="step">
-        <span class="step-num">1</span>
-        <div class="step-body">
-          <strong>Upload two documents.</strong>
-          Your source policy (the authority — what <em>should</em> be true) and the document that's supposed to reflect it: a training manual, agent script, FAQ, or knowledge base article.
-        </div>
-      </li>
-      <li class="step">
-        <span class="step-num">2</span>
-        <div class="step-body">
-          <strong>Choose what parameters to check.</strong>
-          Pick a preset domain — tax or benefits — to load a ready-made schema of parameter types (rates, thresholds, deadlines). Or describe what to look for in plain language.
-        </div>
-      </li>
-      <li class="step">
-        <span class="step-num">3</span>
-        <div class="step-body">
-          <strong>Review the drift report.</strong>
-          The tool extracts matching parameters from both documents and shows you exactly what's different: same parameter, different value; present in policy but missing from implementation; or the reverse.
-        </div>
-      </li>
-      <li class="step">
-        <span class="step-num">4</span>
-        <div class="step-body">
-          <strong>Validate and export.</strong>
-          Confirm, edit, or dismiss each finding. Export a report — or push validated parameters directly to your evaluation pipeline or vector store.
-        </div>
-      </li>
-    </ol>
-  </div>
-</section>
+<main class="upload-page">
 
-<main class="upload-page" id="upload-form">
+  <!-- Find Drift form -->
+  <div id="form-compare">
   <form method="POST" action="/upload" enctype="multipart/form-data" class="upload-form">
 
     <!-- Document pair -->
     <div class="form-row two-col">
       <div class="form-group">
         <label for="policy_file">
-          Source policy
-          <span class="label-hint">The authority — what should be true</span>
+          Official policy
+          <span class="label-hint">The authoritative document — regulation, statute, or policy that defines what should be true</span>
         </label>
         <div class="demo-chips">
-          <span class="demo-chips-label">No files? Try a demo:</span>
+          <span class="demo-chips-label">No documents handy? Try a built-in demo:</span>
           <button type="button" class="demo-chip" data-slot="policy" data-key="tax_policy">Tax · DOR</button>
           <button type="button" class="demo-chip" data-slot="policy" data-key="benefits_policy">Benefits · CDLE</button>
         </div>
@@ -86,11 +65,11 @@
 
       <div class="form-group">
         <label for="implementation_file">
-          Implementation document
-          <span class="label-hint">What's in use — training manual, FAQ, agent script</span>
+          Document in use
+          <span class="label-hint">What your team actually uses — training manual, FAQ, agent script, knowledge base</span>
         </label>
         <div class="demo-chips">
-          <span class="demo-chips-label">No files? Try a demo:</span>
+          <span class="demo-chips-label">No documents handy? Try a built-in demo:</span>
           <button type="button" class="demo-chip" data-slot="implementation" data-key="tax_implementation">Tax · DOR</button>
           <button type="button" class="demo-chip" data-slot="implementation" data-key="benefits_implementation">Benefits · CDLE</button>
         </div>
@@ -105,8 +84,8 @@
     <div class="form-row two-col">
       <div class="form-group">
         <label for="domain">
-          Program area
-          <span class="label-hint">Loads a preset list of parameter types to check</span>
+          Domain
+          <span class="label-hint">Tells the tool what kinds of facts to look for — tax rules, benefit rules, etc.</span>
         </label>
         <select name="domain" id="domain">
           {% for d in domains %}
@@ -116,40 +95,17 @@
         <div id="schema-preview" class="schema-preview" aria-live="polite"></div>
       </div>
 
-      <div class="form-group">
-        <label for="model">
-          AI model
-          <span class="label-hint">Extraction quality vs. speed</span>
-        </label>
-        <select name="model" id="model">
-          <optgroup label="Anthropic Claude — requires ANTHROPIC_API_KEY">
-            <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6 — Recommended · 200K ctx</option>
-            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 — Fast · low cost · 200K ctx</option>
-            <option value="claude-opus-4-6">claude-opus-4-6 — Most capable · 200K ctx</option>
-          </optgroup>
-          <optgroup label="OpenAI — requires OPENAI_API_KEY">
-            <option value="gpt-4o-mini">gpt-4o-mini — Fast · low cost · 128K ctx</option>
-            <option value="gpt-4o">gpt-4o — Accurate · 128K ctx</option>
-            <option value="gpt-4.1-mini">gpt-4.1-mini — Fast · low cost · 1M ctx</option>
-            <option value="gpt-4.1">gpt-4.1 — Most accurate · 1M ctx</option>
-          </optgroup>
-          <optgroup label="Google Gemini — requires GOOGLE_API_KEY">
-            <option value="gemini-2.5-flash">gemini-2.5-flash — Fast · very low cost · 1M ctx</option>
-            <option value="gemini-2.0-flash">gemini-2.0-flash — Fast · low cost · 1M ctx</option>
-          </optgroup>
-        </select>
-      </div>
     </div>
 
     <!-- Advanced -->
     <details class="advanced">
-      <summary>Advanced options <span class="summary-hint">— extraction depth, custom prompt</span></summary>
+      <summary>Advanced options <span class="summary-hint">— thoroughness, AI model, custom prompt</span></summary>
       <div class="advanced-inner">
         <div class="form-row two-col">
           <div class="form-group">
             <label for="extraction_passes">
               How thoroughly to scan
-              <span class="label-hint">More passes find more parameters — but take longer and cost more</span>
+              <span class="label-hint">More passes find more differences — but take longer</span>
             </label>
             <div class="slider-row">
               <span class="slider-label">1 — Fast</span>
@@ -165,11 +121,37 @@
 
           <div class="form-group">
             <label for="custom_prompt">
-              Custom extraction prompt
-              <span class="label-hint">Leave blank to use domain preset</span>
+              What to look for
+              <span class="label-hint">Leave blank to use the domain default. Or describe what to check: e.g. "income thresholds, filing deadlines, penalty amounts"</span>
             </label>
             <textarea name="custom_prompt" id="custom_prompt" rows="3"
                       placeholder="e.g. Check for income thresholds, filing deadlines, penalty amounts."></textarea>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="model">
+              AI model
+              <span class="label-hint">The default (Recommended) works well for most documents. Only change this if instructed by your IT team.</span>
+            </label>
+            <select name="model" id="model">
+              <optgroup label="Anthropic Claude">
+                <option value="claude-sonnet-4-6" selected>Claude Sonnet — Recommended</option>
+                <option value="claude-haiku-4-5-20251001">Claude Haiku — Faster, lower cost</option>
+                <option value="claude-opus-4-6">Claude Opus — Most thorough</option>
+              </optgroup>
+              <optgroup label="OpenAI">
+                <option value="gpt-4o-mini">GPT-4o mini — Fast, low cost</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4.1-mini">GPT-4.1 mini — Fast, low cost</option>
+                <option value="gpt-4.1">GPT-4.1</option>
+              </optgroup>
+              <optgroup label="Google Gemini">
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash — Fast, low cost</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              </optgroup>
+            </select>
           </div>
         </div>
       </div>
@@ -180,6 +162,113 @@
     </div>
 
   </form>
+  </div><!-- /form-compare -->
+
+  <!-- Extract & Validate form -->
+  <div id="form-extract" style="display:none;">
+  <form method="POST" action="/upload-single" enctype="multipart/form-data" class="upload-form">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="document_file">
+          Document
+          <span class="label-hint">Any policy, manual, regulation, or document you want to pull key facts from</span>
+        </label>
+        <div class="demo-chips">
+          <span class="demo-chips-label">No documents handy? Try a built-in demo:</span>
+          <button type="button" class="demo-chip" data-slot="document" data-key="tax_policy">Tax Policy · DOR</button>
+          <button type="button" class="demo-chip" data-slot="document" data-key="benefits_policy">Benefits Policy · CDLE</button>
+          <button type="button" class="demo-chip" data-slot="document" data-key="tax_implementation">Tax Manual · DOR</button>
+          <button type="button" class="demo-chip" data-slot="document" data-key="benefits_implementation">Benefits Manual · CDLE</button>
+        </div>
+        <input type="hidden" name="document_demo" id="document_demo">
+        <input type="file" id="document_file" name="document_file"
+               accept=".md,.txt,.html,.htm,.pdf,.docx">
+        <span class="file-hint">PDF, DOCX, HTML, Markdown, or plain text · max 5 MB</span>
+      </div>
+    </div>
+
+    <div class="form-row two-col">
+      <div class="form-group">
+        <label for="domain_single">
+          Domain
+          <span class="label-hint">Tells the tool what kinds of facts to look for — tax rules, benefit rules, etc.</span>
+        </label>
+        <select name="domain" id="domain_single">
+          {% for d in domains %}
+          <option value="{{ d }}">{{ d | title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced options <span class="summary-hint">— thoroughness, AI model, custom prompt</span></summary>
+      <div class="advanced-inner">
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="extraction_passes_single">
+              How thoroughly to scan
+              <span class="label-hint">More passes find more facts — but take longer</span>
+            </label>
+            <div class="slider-row">
+              <span class="slider-label">1 — Fast</span>
+              <input type="range" id="extraction_passes_single" name="extraction_passes"
+                     min="1" max="5" value="1" step="1"
+                     oninput="document.getElementById('passes-value-single').textContent = this.value">
+              <span class="slider-label">5 — Thorough</span>
+            </div>
+            <div class="slider-value-row">
+              <span id="passes-value-single">1</span> pass<span id="passes-plural-single"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="custom_prompt_single">
+              What to look for
+              <span class="label-hint">Leave blank to use the domain default. Or describe what to extract: e.g. "income thresholds, filing deadlines, penalty amounts"</span>
+            </label>
+            <textarea name="custom_prompt" id="custom_prompt_single" rows="3"
+                      placeholder="e.g. Extract income thresholds, filing deadlines, penalty amounts."></textarea>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="model_single">
+              AI model
+              <span class="label-hint">The default (Recommended) works well for most documents. Only change this if instructed by your IT team.</span>
+            </label>
+            <select name="model" id="model_single">
+              <optgroup label="Anthropic Claude">
+                <option value="claude-sonnet-4-6" selected>Claude Sonnet — Recommended</option>
+                <option value="claude-haiku-4-5-20251001">Claude Haiku — Faster, lower cost</option>
+                <option value="claude-opus-4-6">Claude Opus — Most thorough</option>
+              </optgroup>
+              <optgroup label="OpenAI">
+                <option value="gpt-4o-mini">GPT-4o mini — Fast, low cost</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4.1-mini">GPT-4.1 mini — Fast, low cost</option>
+                <option value="gpt-4.1">GPT-4.1</option>
+              </optgroup>
+              <optgroup label="Google Gemini">
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash — Fast, low cost</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Extract &amp; Validate →</button>
+    </div>
+
+  </form>
+  </div><!-- /form-extract -->
+
 </main>
 
 <section class="pipeline-note">
@@ -192,24 +281,24 @@
 <section class="pipeline-bullets">
   <ul>
     <li>
-      <strong>One review pass. Two outputs.</strong>
-      When a policy expert validates findings here, they produce two things at once:
-      a <em>set of confirmed parameters</em> that can be used to test AI systems,
-      and <em>policy-grounded text chunks</em> ready to index into a knowledge base.
-      Review once; both outputs come from the same session.
+      <strong>Review once, get two things.</strong>
+      When you validate a finding, you produce two outputs at once:
+      a <em>confirmed fact</em> that can be used to test AI systems,
+      and <em>a verified passage</em> ready to add to a knowledge base.
+      One session, two uses.
     </li>
     <li>
-      <strong>Ready-made test cases for AI evaluation.</strong>
-      Each confirmed finding is a complete test case: the correct value from policy,
-      the wrong value from the stale document, and the exact source sentence that proves it.
+      <strong>Every finding is traceable.</strong>
+      Each confirmed difference includes the correct value from policy,
+      the conflicting value from the implementation document, and the exact sentence that proves it.
       Export to <a href="https://github.com/akschneider1/Evergreen-Evals" target="_blank">Evergreen Evals</a>
-      or push to Langfuse. Every failed eval traces back to the specific policy text that defines the right answer.
+      to test AI systems, or use the JSON report to update training materials.
     </li>
     <li>
-      <strong>Verified content for your knowledge base.</strong>
-      Validated parameters carry full lineage — which document, which passage, which expert decision —
-      as metadata. Filter your knowledge base to <code>decision == confirmed</code>
-      to serve only SME-verified content to your AI.
+      <strong>Your reviewed facts carry a full audit trail.</strong>
+      Every confirmed finding records which document it came from, which passage,
+      who reviewed it, and when. This makes it straightforward to update your
+      knowledge base or training content — and to explain your decisions later.
     </li>
   </ul>
 </section>
@@ -249,11 +338,11 @@ document.querySelectorAll('.demo-chip').forEach(function(btn) {
 // Schema preview
 var SCHEMA_PREVIEWS = {
   tax: {
-    types: ['tax_rate', 'filing_threshold', 'penalty_rule'],
+    types: ['Tax rate', 'Filing threshold', 'Penalty rule'],
     example: '"flat income tax rate of 4.4% on Colorado taxable income for tax year 2026"'
   },
   benefits: {
-    types: ['benefit_amount', 'work_search_requirement', 'enrollment_period'],
+    types: ['Benefit amount', 'Work search requirement', 'Enrollment period'],
     example: '"Maximum WBA is $781 per week effective January 1, 2026"'
   }
 };
@@ -267,7 +356,7 @@ function updateSchemaPreview() {
     return '<span class="schema-type-tag">' + t + '</span>';
   }).join('');
   el.innerHTML =
-    '<span class="schema-preview-label">Extracts</span>' + tags +
+    '<span class="schema-preview-label">Will check for:</span>' + tags +
     '<span class="schema-example">e.g. ' + schema.example + '</span>';
 }
 
@@ -278,6 +367,29 @@ updateSchemaPreview();
 document.getElementById('extraction_passes').addEventListener('input', function() {
   document.getElementById('passes-plural').textContent = this.value === '1' ? '' : 'es';
 });
+
+// Extraction passes plural — extract form
+document.getElementById('extraction_passes_single').addEventListener('input', function() {
+  document.getElementById('passes-plural-single').textContent = this.value === '1' ? '' : 'es';
+});
+
+// Clear demo selection when a file is picked — extract form
+document.getElementById('document_file').addEventListener('change', function() {
+  if (this.files.length > 0) {
+    document.getElementById('document_demo').value = '';
+    document.querySelectorAll('.demo-chip[data-slot="document"]').forEach(function(c) {
+      c.classList.remove('active');
+    });
+  }
+});
+
+// Workflow switcher
+function switchWorkflow(mode) {
+  document.getElementById('form-compare').style.display = mode === 'compare' ? '' : 'none';
+  document.getElementById('form-extract').style.display  = mode === 'extract'  ? '' : 'none';
+  document.getElementById('wf-card-compare').classList.toggle('workflow-card-active', mode === 'compare');
+  document.getElementById('wf-card-extract').classList.toggle('workflow-card-active', mode === 'extract');
+}
 </script>
 </body>
 </html>

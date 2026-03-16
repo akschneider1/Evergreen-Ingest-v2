@@ -46,8 +46,21 @@
     {% for e in entries %}
       <tr class="history-row history-row-{{ e.status }}">
         <td class="history-name">
-          <div class="history-name-primary">{{ e.display_name }}</div>
-          <div class="history-name-sub">{{ e.policy_filename }} · {{ e.implementation_filename }}</div>
+          <div class="history-name-primary">
+            {% if e.mode == "extract" %}
+            <span class="mode-badge mode-badge-extract">Extract</span>
+            {% else %}
+            <span class="mode-badge mode-badge-compare">Drift</span>
+            {% endif %}
+            {{ e.display_name }}
+          </div>
+          <div class="history-name-sub">
+            {% if e.mode == "extract" %}
+              {{ e.document_filename or e.policy_filename }}
+            {% else %}
+              {{ e.policy_filename }} · {{ e.implementation_filename }}
+            {% endif %}
+          </div>
         </td>
         <td><span class="history-domain">{{ e.domain | title }}</span></td>
         <td class="history-model">{{ e.model }}</td>
@@ -80,13 +93,24 @@
           {% endif %}
         </td>
         <td class="history-actions">
-          {% if e.status == "ready" %}
-            <a href="/compare/{{ e.comparison_id }}" class="btn-small">Review</a>
-            <a href="/compare/{{ e.comparison_id }}/report" class="btn-small btn-small-secondary">Report</a>
-          {% elif e.status == "error" %}
-            <a href="/compare/{{ e.comparison_id }}/status" class="btn-small btn-small-secondary">Details</a>
+          {% if e.mode == "extract" %}
+            {% if e.status == "ready" %}
+              <a href="/extract/{{ e.comparison_id }}" class="btn-small">Review</a>
+              <a href="/extract/{{ e.comparison_id }}/report" class="btn-small btn-small-secondary">Report</a>
+            {% elif e.status == "error" %}
+              <a href="/extract/{{ e.comparison_id }}/status" class="btn-small btn-small-secondary">Details</a>
+            {% else %}
+              <a href="/extract/{{ e.comparison_id }}/status" class="btn-small">View</a>
+            {% endif %}
           {% else %}
-            <a href="/compare/{{ e.comparison_id }}/status" class="btn-small">View</a>
+            {% if e.status == "ready" %}
+              <a href="/compare/{{ e.comparison_id }}" class="btn-small">Review</a>
+              <a href="/compare/{{ e.comparison_id }}/report" class="btn-small btn-small-secondary">Report</a>
+            {% elif e.status == "error" %}
+              <a href="/compare/{{ e.comparison_id }}/status" class="btn-small btn-small-secondary">Details</a>
+            {% else %}
+              <a href="/compare/{{ e.comparison_id }}/status" class="btn-small">View</a>
+            {% endif %}
           {% endif %}
         </td>
       </tr>

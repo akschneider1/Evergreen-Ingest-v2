@@ -1991,6 +1991,66 @@ a.chapter-step:hover { color: #e2e8f0; }
 }
 .btn-small-secondary:hover { background: #e5e7eb; }
 
+/* ---- Workflow cards (index.html) ---- */
+.workflow-cards { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 1.25rem 0 0; }
+.workflow-cards-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  gap: 1rem;
+}
+.workflow-card {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid #e5e7eb;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  background: #f9fafb;
+  transition: background 0.15s, border-color 0.15s;
+}
+.workflow-card:hover { background: #f3f4f6; }
+.workflow-card-active {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+  border-bottom-color: #6366f1;
+}
+.wf-card-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #6366f1;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+.wf-card-body { min-width: 0; }
+.wf-card-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem; color: #1e1b4b; }
+.wf-card-desc  { font-size: 0.82rem; color: #6b7280; margin: 0 0 0.3rem; line-height: 1.4; }
+.wf-card-hint  { font-size: 0.75rem; color: #9ca3af; font-style: italic; }
+
+/* ---- Mode badges (history.html) ---- */
+.mode-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+  letter-spacing: 0.02em;
+}
+.mode-badge-extract { background: #ede9fe; color: #5b21b6; }
+.mode-badge-compare { background: #dbeafe; color: #1d4ed8; }
+
+/* ---- detail-grid-single (extract detail) ---- */
+.detail-grid-single { display: block; }
+
+/* ---- Status page wait note ---- */
+.status-wait-note { color: #6b7280; font-size: 0.9rem; margin: 0 0 1.25rem; }
+
 /* ---- Responsive: detail page ---- */
 @media (max-width: 900px) {
   .decision-cards { grid-template-columns: 1fr; }

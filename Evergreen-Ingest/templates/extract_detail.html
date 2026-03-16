@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ param.extraction_class }} — Parameter {{ position }} — Evergreen Ingest</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+    <nav class="header-nav">
+      <a href="/comparisons">History</a>
+      <a href="/extract/{{ extraction_id }}">&larr; All Parameters</a>
+      &nbsp;&middot;&nbsp;
+      <a href="/extract/{{ extraction_id }}/report">Report</a>
+    </nav>
+  </div>
+</header>
+
+<nav class="chapter-nav">
+  <div class="chapter-nav-inner">
+    <a href="/" class="chapter-step chapter-done">Ingest</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-done">Extract</span>
+    <span class="chapter-sep">›</span>
+    <a href="/extract/{{ extraction_id }}" class="chapter-step chapter-done">Review</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-active">Validate</span>
+    <span class="chapter-sep">›</span>
+    <a href="/extract/{{ extraction_id }}/report" class="chapter-step">Report</a>
+  </div>
+</nav>
+
+<main class="detail-page">
+
+  <nav class="breadcrumb">
+    <a href="/">Home</a><span class="bc-sep">/</span>
+    <a href="/comparisons">History</a><span class="bc-sep">/</span>
+    <a href="/extract/{{ extraction_id }}">{{ meta.display_name or (meta.domain | title) }}</a><span class="bc-sep">/</span>
+    <span class="bc-current">Parameter {{ position }} of {{ total }}</span>
+  </nav>
+
+  <!-- Prev / position / next -->
+  <div class="detail-nav">
+    {% if prev_idx is not none %}
+    <a href="/extract/{{ extraction_id }}/param/{{ prev_idx }}" class="detail-nav-btn" title="Previous (left arrow)">&larr; Prev</a>
+    {% else %}
+    <span class="detail-nav-btn detail-nav-btn-disabled">&larr; Prev</span>
+    {% endif %}
+
+    <div class="detail-nav-center">
+      <span class="detail-nav-pos">{{ position }} / {{ total }}</span>
+      <span class="status-badge status-drifted">extracted</span>
+      <span class="detail-nav-class">{{ param.extraction_class }}</span>
+    </div>
+
+    {% if next_idx is not none %}
+    <a href="/extract/{{ extraction_id }}/param/{{ next_idx }}" class="detail-nav-btn" title="Next (right arrow)">Next &rarr;</a>
+    {% else %}
+    <span class="detail-nav-btn detail-nav-btn-disabled">Next &rarr;</span>
+    {% endif %}
+  </div>
+
+  <!-- Current decision banner -->
+  {% if decision %}
+  <div class="detail-decision-banner decision-banner-{{ decision.decision }}" id="decision-banner">
+    <div class="ddb-left">
+      <span class="ddb-icon">
+        {% if decision.decision == 'confirmed' %}&#x2713;{% elif decision.decision == 'edited' %}&#x270E;{% elif decision.decision == 'rejected' %}&#x2715;{% endif %}
+      </span>
+      <div class="ddb-text">
+        <strong>{{ decision.decision | title }}</strong>
+        {% if decision.note %}&nbsp;&mdash;&nbsp;<em>{{ decision.note }}</em>{% endif %}
+        {% if decision.edited_value %}<br><span class="ddb-edited-val">Corrected value: <code>{{ decision.edited_value | tojson }}</code></span>{% endif %}
+        <span class="ddb-timestamp">Saved {{ decision.decided_at }}</span>
+      </div>
+    </div>
+    <button class="ddb-change-btn" onclick="scrollToForm()">Change decision</button>
+  </div>
+  {% endif %}
+
+  <!-- Source detail -->
+  <div class="detail-grid detail-grid-single">
+
+    <div class="detail-col detail-col-policy">
+      <h2>
+        <span class="detail-col-heading-label">Extracted from {{ meta.document_filename or meta.policy_filename }}</span>
+        {% if param.viz_idx is not none %}
+        <a href="/extract/{{ extraction_id }}/viz#idx={{ param.viz_idx }}"
+           target="_blank" class="viz-link detail-source-link">View in source &rarr;</a>
+        {% endif %}
+      </h2>
+      <blockquote class="source-text">{{ param.extraction_text }}</blockquote>
+
+      {% if param.attributes %}
+      <table class="attr-table">
+        <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
+        <tbody>
+        {% for k, v in param.attributes.items() %}
+        <tr>
+          <td>{{ k }}</td>
+          <td>{{ v }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if param.char_start is not none %}
+      <p class="char-position">
+        <span class="char-range">chars {{ param.char_start }}&ndash;{{ param.char_end }}</span>
+      </p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Annotation form -->
+  <section class="detail-annotation" id="annotation-form">
+    <h2 class="detail-annotation-heading">Your decision</h2>
+    <p class="detail-annotation-hint">
+      Is this extraction correct? Approve it, correct the value, or reject it as a false positive.
+    </p>
+
+    <form method="POST"
+          action="/extract/{{ extraction_id }}/param/{{ param.index }}"
+          class="annotation-form"
+          id="annotation-form-el">
+
+      <div class="decision-cards">
+
+        <label class="decision-card decision-card-confirm{% if decision and decision.decision == 'confirmed' %} decision-card-selected{% endif %}">
+          <input type="radio" name="decision" value="confirmed"
+                 {% if decision and decision.decision == 'confirmed' %}checked{% endif %}
+                 onchange="onDecisionChange(this)">
+          <div class="dc-header">
+            <span class="dc-icon dc-icon-confirm">&#x2713;</span>
+            <span class="dc-title">Approve</span>
+          </div>
+          <p class="dc-desc">Extraction is correct — keep as ground truth.</p>
+        </label>
+
+        <label class="decision-card decision-card-edit{% if decision and decision.decision == 'edited' %} decision-card-selected{% endif %}">
+          <input type="radio" name="decision" value="edited"
+                 {% if decision and decision.decision == 'edited' %}checked{% endif %}
+                 onchange="onDecisionChange(this)">
+          <div class="dc-header">
+            <span class="dc-icon dc-icon-edit">&#x270E;</span>
+            <span class="dc-title">Edit</span>
+          </div>
+          <p class="dc-desc">Correct the extracted value — context differs or extraction was imprecise.</p>
+        </label>
+
+        <label class="decision-card decision-card-reject{% if decision and decision.decision == 'rejected' %} decision-card-selected{% endif %}">
+          <input type="radio" name="decision" value="rejected"
+                 {% if decision and decision.decision == 'rejected' %}checked{% endif %}
+                 onchange="onDecisionChange(this)">
+          <div class="dc-header">
+            <span class="dc-icon dc-icon-reject">&#x2715;</span>
+            <span class="dc-title">Reject</span>
+          </div>
+          <p class="dc-desc">False positive — this is not a policy parameter.</p>
+        </label>
+
+      </div>
+
+      <div id="edit-block" class="detail-edit-block" style="display:none;">
+        <label class="edit-block-label" for="edited_json">Corrected attribute values (JSON)</label>
+        <p class="edit-block-hint">Edit the JSON below to supply the correct values. The original extraction is preserved above.</p>
+        <textarea name="edited_json"
+                  id="edited_json"
+                  rows="7"
+                  class="json-editor"
+                  placeholder='{"parameter": "filing threshold", "value": "$14,600"}'
+        >{% if decision and decision.edited_value %}{{ decision.edited_value | tojson(indent=2) }}{% else %}{{ param.attributes | tojson(indent=2) }}{% endif %}</textarea>
+      </div>
+
+      <div class="detail-note-group">
+        <label for="note" class="detail-note-label">Note <span class="detail-note-optional">(optional)</span></label>
+        <textarea name="note"
+                  id="note"
+                  rows="2"
+                  class="detail-note-textarea"
+                  placeholder="Add context, a correction note, or a reference&hellip;"
+        >{% if decision %}{{ decision.note }}{% endif %}</textarea>
+      </div>
+
+      <div class="detail-form-actions">
+        <button type="submit" class="btn-primary btn-save-decision" id="submit-btn">Save decision</button>
+        {% if prev_idx is not none %}
+        <a href="/extract/{{ extraction_id }}/param/{{ prev_idx }}" class="btn-secondary">&larr; Prev</a>
+        {% endif %}
+        {% if next_idx is not none %}
+        <a href="/extract/{{ extraction_id }}/param/{{ next_idx }}" class="btn-secondary btn-next-finding">Next &rarr;</a>
+        {% endif %}
+        <a href="/extract/{{ extraction_id }}" class="btn-secondary">Back to list</a>
+      </div>
+
+    </form>
+  </section>
+
+</main>
+
+<footer>
+  <p>Evergreen Ingest &nbsp;&middot;&nbsp; <a href="/extract/{{ extraction_id }}/report">View report</a></p>
+</footer>
+
+<script>
+function onDecisionChange(radio) {
+  var editBlock = document.getElementById('edit-block');
+  if (editBlock) {
+    editBlock.style.display = (radio.value === 'edited') ? 'block' : 'none';
+  }
+  document.querySelectorAll('.decision-card').forEach(function(card) {
+    card.classList.remove('decision-card-selected');
+  });
+  radio.closest('.decision-card').classList.add('decision-card-selected');
+}
+
+function scrollToForm() {
+  var form = document.getElementById('annotation-form');
+  if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var editedRadio = document.querySelector('input[value="edited"]');
+  if (editedRadio && editedRadio.checked) {
+    var editBlock = document.getElementById('edit-block');
+    if (editBlock) editBlock.style.display = 'block';
+  }
+  document.querySelectorAll('.decision-card').forEach(function(card) {
+    var radio = card.querySelector('input[type="radio"]');
+    if (radio && radio.checked) card.classList.add('decision-card-selected');
+  });
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft') {
+    {% if prev_idx is not none %}window.location.href = '/extract/{{ extraction_id }}/param/{{ prev_idx }}';{% endif %}
+  }
+  if (e.key === 'ArrowRight') {
+    var next = document.querySelector('.btn-next-finding');
+    if (next) window.location.href = next.href;
+  }
+});
+</script>
+</body>
+</html>

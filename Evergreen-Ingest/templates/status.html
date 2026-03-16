@@ -49,6 +49,7 @@
     <!-- Processing state -->
     <div id="processing-view">
       <h1>Processing your documents…</h1>
+      <p class="status-wait-note">Usually takes 10–60 seconds depending on document length.</p>
 
       <!-- Pizza tracker -->
       <div class="tracker" aria-label="Progress steps">
@@ -61,19 +62,25 @@
           <div class="tracker-dot"></div>
           <span class="tracker-label">Extracting</span>
         </div>
+        {% if meta.mode != "extract" %}
         <div class="tracker-line"></div>
         <div class="tracker-step" id="step-comparing">
           <div class="tracker-dot"></div>
           <span class="tracker-label">Comparing</span>
         </div>
+        {% endif %}
       </div>
 
       <p class="status-description" id="status-description">Starting up…</p>
       <p class="status-elapsed" id="elapsed-display"></p>
 
       <dl class="meta-list">
+        {% if meta.mode == "extract" %}
+        <dt>Document</dt><dd>{{ meta.document_filename or meta.policy_filename }}</dd>
+        {% else %}
         <dt>Policy</dt><dd>{{ meta.policy_filename }}</dd>
         <dt>Implementation</dt><dd>{{ meta.implementation_filename }}</dd>
+        {% endif %}
         <dt>Domain</dt><dd>{{ meta.domain | title }}</dd>
       </dl>
 
@@ -98,10 +105,13 @@
 
 <script>
 const COMPARISON_ID = "{{ comparison_id }}";
+const MODE = "{{ meta.mode or 'compare' }}";
 const POLL_INTERVAL_MS = 1000;
 const CLIENT_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes
 
-const STEP_ORDER = ["pending", "extracting", "comparing"];
+const STEP_ORDER = MODE === "extract"
+  ? ["pending", "extracting"]
+  : ["pending", "extracting", "comparing"];
 
 const STEP_DESCRIPTIONS = {
   pending:    "Queued for extraction…",
@@ -149,8 +159,8 @@ async function poll() {
   // Client-side timeout guard
   if (Date.now() - startedAt > CLIENT_TIMEOUT_MS) {
     showError(
-      "No response after 6 minutes. The server may be overloaded or the API is unresponsive. " +
-      "Please <a href='/'>start over</a> or check your API key and quota.",
+      "Processing is taking longer than expected (6+ minutes). The AI service may be temporarily busy. " +
+      "Please <a href='/'>try again</a> — if the problem continues, contact your IT team.",
       []
     );
     return;
@@ -158,7 +168,10 @@ async function poll() {
 
   let data;
   try {
-    const resp = await fetch(`/compare/${COMPARISON_ID}/status.json`);
+    const statusUrl = MODE === "extract"
+      ? `/extract/${COMPARISON_ID}/status.json`
+      : `/compare/${COMPARISON_ID}/status.json`;
+    const resp = await fetch(statusUrl);
     if (!resp.ok) { setTimeout(poll, POLL_INTERVAL_MS); return; }
     data = await resp.json();
   } catch (e) {
@@ -168,7 +181,9 @@ async function poll() {
 
   if (data.status === "ready") {
     updateLogs(data.logs || [], true);
-    window.location.href = `/compare/${COMPARISON_ID}`;
+    window.location.href = MODE === "extract"
+      ? `/extract/${COMPARISON_ID}`
+      : `/compare/${COMPARISON_ID}`;
     return;
   }
 

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review Extractions — {{ meta.document_filename or meta.policy_filename }} — Evergreen Ingest</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">Evergreen Ingest</a>
+    <nav class="header-nav">
+      <a href="/comparisons">History</a>
+      <a href="/extract/{{ extraction_id }}/report.json">Download JSON</a>
+    </nav>
+  </div>
+</header>
+
+<nav class="chapter-nav">
+  <div class="chapter-nav-inner">
+    <a href="/" class="chapter-step chapter-done">Ingest</a>
+    <span class="chapter-sep">›</span>
+    <a href="/extract/{{ extraction_id }}/status" class="chapter-step chapter-done">Extract</a>
+    <span class="chapter-sep">›</span>
+    <span class="chapter-step chapter-active">Review</span>
+    <span class="chapter-sep">›</span>
+    <a href="/extract/{{ extraction_id }}/report" class="chapter-step">Report</a>
+  </div>
+</nav>
+
+<main>
+
+  <nav class="breadcrumb">
+    <a href="/">Home</a><span class="bc-sep">/</span>
+    <a href="/comparisons">History</a><span class="bc-sep">/</span>
+    <span class="bc-current">{{ meta.display_name or (meta.domain | title ~ ": " ~ (meta.document_filename or meta.policy_filename)) }}</span>
+  </nav>
+
+  <div class="compare-meta">
+    <h1>Extracted Parameters</h1>
+    <p class="doc-names">
+      <strong>Document:</strong> {{ meta.document_filename or meta.policy_filename }} &nbsp;&middot;&nbsp;
+      <strong>Domain:</strong> {{ meta.domain | title }} &nbsp;&middot;&nbsp;
+      <strong>Model:</strong> {{ meta.model }}
+    </p>
+  </div>
+
+  <!-- Summary card -->
+  {% if single_doc.total == 0 %}
+  <div class="drift-summary-card drift-summary-clean">
+    <p class="drift-summary-headline">No parameters extracted.</p>
+    <p class="drift-summary-detail">The model found nothing matching the schema. Try a different model or domain.</p>
+  </div>
+  {% else %}
+  <div class="drift-summary-card drift-summary-drifted">
+    <p class="drift-summary-headline">{{ single_doc.total }} parameter{% if single_doc.total != 1 %}s{% endif %} extracted — review each one below.</p>
+  </div>
+  {% endif %}
+
+  <!-- Progress bar -->
+  <div class="review-progress-strip">
+    <div class="rp-counts">
+      <span class="rp-item rp-item-matched">
+        <span class="rp-num">{{ single_doc.total }}</span>
+        <span class="rp-lbl">Total</span>
+      </span>
+      <span class="rp-divider"></span>
+      <span class="rp-item rp-item-progress" id="rp-progress-label">
+        <span class="rp-num" id="rp-decided-num">{{ progress.decided }}</span>
+        <span class="rp-num-of">/</span>
+        <span class="rp-num" id="rp-actionable-num">{{ single_doc.total }}</span>
+        <span class="rp-lbl">Reviewed</span>
+      </span>
+      {% if progress.decided == single_doc.total and single_doc.total > 0 %}
+      <span class="rp-item">
+        <a href="/extract/{{ extraction_id }}/report" class="btn-primary" style="font-size:0.85rem;padding:0.3rem 0.9rem;">View Report →</a>
+      </span>
+      {% endif %}
+    </div>
+    <div class="rp-bar-wrap">
+      <div class="rp-bar" id="rp-bar"
+           style="width: {% if single_doc.total > 0 %}{{ (progress.decided / single_doc.total * 100) | round | int }}{% else %}100{% endif %}%"></div>
+    </div>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="filter-tabs-bar">
+    <div class="filter-tabs" role="tablist">
+      <button class="filter-tab filter-tab-active" role="tab" data-filter="pending"
+              onclick="setFilter('pending', this)">
+        Pending <span class="tab-count" id="tab-pending-count">{{ single_doc.total - progress.decided }}</span>
+      </button>
+      <button class="filter-tab" role="tab" data-filter="all"
+              onclick="setFilter('all', this)">
+        All <span class="tab-count">{{ single_doc.total }}</span>
+      </button>
+      <button class="filter-tab" role="tab" data-filter="confirmed"
+              onclick="setFilter('confirmed', this)">
+        Approved <span class="tab-count">{{ progress.by_decision.confirmed if progress.by_decision else 0 }}</span>
+      </button>
+      <button class="filter-tab" role="tab" data-filter="edited"
+              onclick="setFilter('edited', this)">
+        Edited <span class="tab-count">{{ progress.by_decision.edited if progress.by_decision else 0 }}</span>
+      </button>
+      <button class="filter-tab" role="tab" data-filter="rejected"
+              onclick="setFilter('rejected', this)">
+        Rejected <span class="tab-count">{{ progress.by_decision.rejected if progress.by_decision else 0 }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Parameter list -->
+  <div class="param-list" id="param-list">
+    {% for param in single_doc.parameters %}
+    <div class="prow prow-drifted{% if param.decision %} prow-decided{% endif %}"
+         id="prow-{{ param.index }}"
+         data-index="{{ param.index }}"
+         data-decision="{{ param.decision.decision if param.decision else '' }}">
+
+      <div class="prow-summary">
+
+        <div class="prow-left">
+          <span class="prow-indicator prow-indicator-drifted" title="Extracted"></span>
+          <div class="prow-identity">
+            <span class="prow-class">{{ param.extraction_class }}</span>
+            <div class="prow-delta">
+              {% set display_val = param.attributes.get("parameter") or param.attributes.get("value") or param.extraction_text | truncate(80) %}
+              <span class="delta-policy">{{ display_val }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="prow-state">
+          {% if param.decision %}
+            <span class="prow-decision-badge decision-badge decision-{{ param.decision.decision }}"
+                  id="badge-{{ param.index }}">
+              {% if param.decision.decision == 'confirmed' %}&#x2713; approved
+              {% elif param.decision.decision == 'edited' %}&#x270E; edited
+              {% elif param.decision.decision == 'rejected' %}&#x2715; rejected
+              {% endif %}
+            </span>
+          {% else %}
+            <span class="prow-pending-dot" id="badge-{{ param.index }}" title="Pending review"></span>
+          {% endif %}
+        </div>
+
+        <div class="prow-actions">
+          <button class="qa-btn qa-confirm{% if param.decision and param.decision.decision == 'confirmed' %} qa-active{% endif %}"
+                  title="Approve this extraction"
+                  onclick="quickDecide(event, {{ param.index }}, 'confirmed')">
+            &#x2713;
+          </button>
+          <button class="qa-btn qa-reject{% if param.decision and param.decision.decision == 'rejected' %} qa-active{% endif %}"
+                  title="Reject — false positive or irrelevant"
+                  onclick="quickDecide(event, {{ param.index }}, 'rejected')">
+            &#x2715;
+          </button>
+          <a href="/extract/{{ extraction_id }}/param/{{ param.index }}"
+             class="qa-detail-link" title="Open full detail view">
+            Edit&nbsp;&#x2192;
+          </a>
+        </div>
+
+      </div>
+
+      <div class="prow-note-row" id="note-row-{{ param.index }}" style="display:none;">
+        <input type="text"
+               class="prow-note-input"
+               id="note-input-{{ param.index }}"
+               placeholder="Optional note (press Enter to save, Esc to cancel)"
+               maxlength="500">
+        <button class="qa-btn qa-save-note" onclick="saveNote(event, {{ param.index }})">Save</button>
+        <button class="qa-btn qa-cancel-note" onclick="cancelNote({{ param.index }})">Cancel</button>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="empty-state" class="empty-state" style="display:none;">
+    <p id="empty-state-msg">No parameters to show.
+      <button class="link-btn" onclick="setFilter('all', document.querySelector('[data-filter=all]'))">Show all</button>
+    </p>
+  </div>
+
+  <!-- Visualization -->
+  <div class="viz-section">
+    <div class="viz-tab-bar">
+      <span class="viz-tab viz-tab-active">Document</span>
+      <a href="/extract/{{ extraction_id }}/viz"
+         target="_blank"
+         rel="noopener"
+         class="viz-fullpage-link">Open full page &rarr;</a>
+    </div>
+    <p class="viz-filename">{{ meta.document_filename or meta.policy_filename }}</p>
+    <iframe id="viz-iframe"
+            src="/extract/{{ extraction_id }}/viz"
+            class="viz-frame-full"
+            title="Extraction visualization"></iframe>
+  </div>
+
+</main>
+
+<footer>
+  <p>Evergreen Ingest &nbsp;&middot;&nbsp; Every finding grounded to exact source text.</p>
+</footer>
+
+<script>
+(function () {
+  var EXTRACTION_ID = '{{ extraction_id }}';
+  var BASE_URL = '/extract/' + EXTRACTION_ID + '/param/';
+
+  var decidedCount = parseInt(document.getElementById('rp-decided-num').textContent, 10) || 0;
+  var totalCount = parseInt(document.getElementById('rp-actionable-num').textContent, 10) || 0;
+
+  function updateProgressBar() {
+    var pct = totalCount > 0 ? Math.round(decidedCount / totalCount * 100) : 100;
+    document.getElementById('rp-bar').style.width = pct + '%';
+    document.getElementById('rp-decided-num').textContent = decidedCount;
+    applyFilterState();
+  }
+
+  var currentFilter = 'pending';
+
+  function setFilter(mode, btn) {
+    currentFilter = mode;
+    document.querySelectorAll('.filter-tab').forEach(function(b) {
+      b.classList.remove('filter-tab-active');
+    });
+    if (btn) btn.classList.add('filter-tab-active');
+    applyFilterState();
+  }
+  window.setFilter = setFilter;
+
+  function applyFilterState() {
+    var rows = document.querySelectorAll('.prow');
+    var anyVisible = false;
+    rows.forEach(function(row) {
+      var decision = row.dataset.decision;
+      var visible = true;
+      if (currentFilter === 'pending' && decision !== '') visible = false;
+      else if (currentFilter === 'confirmed' && decision !== 'confirmed') visible = false;
+      else if (currentFilter === 'edited' && decision !== 'edited') visible = false;
+      else if (currentFilter === 'rejected' && decision !== 'rejected') visible = false;
+      row.style.display = visible ? '' : 'none';
+      if (visible) anyVisible = true;
+    });
+    var emptyEl = document.getElementById('empty-state');
+    emptyEl.style.display = !anyVisible ? '' : 'none';
+  }
+
+  window.quickDecide = function(evt, index, decision) {
+    evt.stopPropagation();
+    var row = document.getElementById('prow-' + index);
+    var prevDecision = row.dataset.decision;
+
+    row.dataset.decision = decision;
+    row.classList.add('prow-decided');
+    updateBadge(index, decision);
+
+    if (prevDecision === '' && decision !== '') {
+      decidedCount++;
+    }
+
+    var formData = new FormData();
+    formData.append('decision', decision);
+    formData.append('note', '');
+    formData.append('edited_json', '');
+
+    fetch(BASE_URL + index, {
+      method: 'POST',
+      body: formData,
+      redirect: 'manual'
+    }).then(function(resp) {
+      if (!resp.ok && resp.type !== 'opaqueredirect') {
+        row.dataset.decision = prevDecision;
+        if (prevDecision === '') {
+          decidedCount--;
+          row.classList.remove('prow-decided');
+          updateBadge(index, '');
+        }
+        console.error('Decision save failed', resp.status);
+      }
+    }).catch(function(err) {
+      console.error('Network error saving decision', err);
+    });
+
+    var noteRow = document.getElementById('note-row-' + index);
+    if (noteRow) {
+      noteRow.style.display = 'flex';
+      document.getElementById('note-input-' + index).focus();
+    }
+
+    updateProgressBar();
+  };
+
+  window.saveNote = function(evt, index) {
+    evt.stopPropagation();
+    var noteInput = document.getElementById('note-input-' + index);
+    var note = noteInput ? noteInput.value.trim() : '';
+    var row = document.getElementById('prow-' + index);
+    var decision = row.dataset.decision;
+    if (!decision) return;
+
+    var formData = new FormData();
+    formData.append('decision', decision);
+    formData.append('note', note);
+    formData.append('edited_json', '');
+
+    fetch(BASE_URL + index, { method: 'POST', body: formData, redirect: 'manual' })
+      .catch(function(err) { console.error(err); });
+
+    var noteRow = document.getElementById('note-row-' + index);
+    if (noteRow) noteRow.style.display = 'none';
+  };
+
+  window.cancelNote = function(index) {
+    var noteRow = document.getElementById('note-row-' + index);
+    if (noteRow) noteRow.style.display = 'none';
+  };
+
+  document.querySelectorAll('.prow-note-input').forEach(function(input) {
+    var idx = input.id.replace('note-input-', '');
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); saveNote(e, parseInt(idx, 10)); }
+      if (e.key === 'Escape') { cancelNote(parseInt(idx, 10)); }
+    });
+  });
+
+  function updateBadge(index, decision) {
+    var badge = document.getElementById('badge-' + index);
+    if (!badge) return;
+    if (!decision) {
+      badge.className = 'prow-pending-dot';
+      badge.title = 'Pending review';
+      badge.textContent = '';
+    } else {
+      badge.className = 'prow-decision-badge decision-badge decision-' + decision;
+      badge.title = '';
+      var labels = { confirmed: '\u2713 approved', edited: '\u270E edited', rejected: '\u2715 rejected' };
+      badge.textContent = labels[decision] || decision;
+    }
+  }
+
+  // Keyboard navigation
+  var focusedIndex = null;
+
+  function getVisibleRows() {
+    var rows = [];
+    document.querySelectorAll('.prow').forEach(function(row) {
+      if (row.style.display !== 'none') rows.push(row);
+    });
+    return rows;
+  }
+
+  function focusRow(row) {
+    if (focusedIndex !== null) {
+      var prev = document.querySelector('.prow[data-index="' + focusedIndex + '"]');
+      if (prev) prev.classList.remove('prow-focused');
+    }
+    row.classList.add('prow-focused');
+    focusedIndex = parseInt(row.dataset.index, 10);
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    var visible = getVisibleRows();
+    if (!visible.length) return;
+
+    if (e.key === 'j' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (focusedIndex === null) { focusRow(visible[0]); return; }
+      var cur = visible.findIndex(function(r) { return parseInt(r.dataset.index, 10) === focusedIndex; });
+      if (cur < visible.length - 1) focusRow(visible[cur + 1]);
+    } else if (e.key === 'k' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (focusedIndex === null) { focusRow(visible[visible.length - 1]); return; }
+      var cur2 = visible.findIndex(function(r) { return parseInt(r.dataset.index, 10) === focusedIndex; });
+      if (cur2 > 0) focusRow(visible[cur2 - 1]);
+    } else if (e.key === 'c' && focusedIndex !== null) {
+      quickDecide({ stopPropagation: function(){} }, focusedIndex, 'confirmed');
+    } else if (e.key === 'r' && focusedIndex !== null) {
+      quickDecide({ stopPropagation: function(){} }, focusedIndex, 'rejected');
+    } else if ((e.key === 'Enter' || e.key === 'e') && focusedIndex !== null) {
+      window.location.href = BASE_URL + focusedIndex;
+    }
+  });
+
+  applyFilterState();
+
+}());
+</script>
+</body>
+</html>

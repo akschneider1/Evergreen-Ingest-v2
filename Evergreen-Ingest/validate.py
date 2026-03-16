@@ -109,9 +109,15 @@ def validation_progress(state: dict, total_params: int, actionable_count: int) -
     actionable_count = drifted + missing + extra (matched params don't need review).
     """
     decided = len(state["decisions"])
+    by_decision: dict[str, int] = {}
+    for d in state["decisions"].values():
+        key = d.get("decision", "")
+        if key:
+            by_decision[key] = by_decision.get(key, 0) + 1
     return {
         "decided": decided,
         "actionable": actionable_count,
         "pending": max(0, actionable_count - decided),
         "percent": round(100 * decided / actionable_count) if actionable_count else 100,
+        "by_decision": by_decision,
     }
