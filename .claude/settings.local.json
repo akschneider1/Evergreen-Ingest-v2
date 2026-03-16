@@ -36,7 +36,8 @@
       "Bash(echo:*)",
       "Bash(dot -Tsvg)",
       "Read(//tmp/**)",
-      "WebFetch(domain:api.github.com)"
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:evergreen-v-2-1.replit.app)"
     ]
   }
 }
